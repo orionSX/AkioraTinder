@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Akiora</string>
+    <string name="login_title">Вход</string>
+    <string name="register_title">Регистрация</string>
+    <string name="email">Эл. почта</string>
+    <string name="password">Пароль</string>
+    <string name="login">Войти</string>
+    <string name="register">Зарегистрироваться</string>
+    <string name="login_success">Вход выполнен</string>
+    <string name="login_error">Ошибка входа — неверные данные</string>
+    <string name="register_success">Регистрация прошла успешно</string>
+    <string name="err_required">Обязательно</string>
+    <string name="server">Сервер</string>
+    <string name="role">Роль</string>
+    <string name="rank">Ранг</string>
+    <string name="settings">Настройки</string>
+    <string name="connect">Связаться</string>
+    <string name="switch_theme">Сменить тему</string>
+    <string name="switch_lang">Сменить язык</string>
+    <string name="tab_settings">Настройки</string>
+    <string name="tab_profile">Профиль</string>
+    <string name="tab_profiles">Профили</string>
+</resources>
