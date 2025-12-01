@@ -1,33 +1,42 @@
 package com.example.akioratinder.storage
 
 import android.content.Context
-import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.Flow
-
-val Context.dataStore by preferencesDataStore(name = "settings")
+import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class ThemeLanguageStore(private val context: Context) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
     companion object {
-        val THEME_KEY = booleanPreferencesKey("dark_mode")
-        val LANG_KEY = stringPreferencesKey("lang")
+        private const val KEY_DARK_THEME = "dark_theme"
+        private const val KEY_LANGUAGE = "language"
+        private const val DEFAULT_LANGUAGE = "ru"
     }
 
-    val darkThemeFlow: Flow<Boolean> = context.dataStore.data.map {
-        it[THEME_KEY] ?: false
+
+    private val _darkTheme = MutableStateFlow(getDarkTheme())
+    private val _language = MutableStateFlow(getLanguage())
+
+    val darkThemeFlow: StateFlow<Boolean> = _darkTheme
+    val langFlow: StateFlow<String> = _language
+
+
+    fun getDarkTheme(): Boolean = prefs.getBoolean(KEY_DARK_THEME, false)
+    fun getLanguage(): String = prefs.getString(KEY_LANGUAGE, DEFAULT_LANGUAGE) ?: DEFAULT_LANGUAGE
+
+
+    fun setDarkTheme(isDark: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK_THEME, isDark).apply()
+        _darkTheme.value = isDark
     }
 
-    val langFlow: Flow<String> = context.dataStore.data.map {
-        it[LANG_KEY] ?: "ru"
+    fun setLang(lang: String) {
+        prefs.edit().putString(KEY_LANGUAGE, lang).apply()
+        _language.value = lang
     }
 
-    suspend fun toggleTheme(isDark: Boolean) {
-        context.dataStore.edit { it[THEME_KEY] = isDark }
-    }
-
-    suspend fun setLang(code: String) {
-        context.dataStore.edit { it[LANG_KEY] = code }
+    fun toggleTheme() {
+        setDarkTheme(!getDarkTheme())
     }
 }

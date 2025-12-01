@@ -20,4 +20,65 @@
     <string name="tab_settings">Settings</string>
     <string name="tab_profile">Profile</string>
     <string name="tab_profiles">Profiles</string>
+    <string name="err_email_invalid">Invalid email format</string>
+    <string name="err_password_short">Password must be at least 6 characters</string>
+    <string name="swipe_like">Like</string>
+    <string name="swipe_pass">Pass</string>
+
+    <string name="reset_to_default">Reset to default</string>
+    <string name="no_more_profiles">No more profiles</string>
+    <string name="bio">Bio</string>
+    <string name="summoner_name">Summoner Name</string>
+    <string name="your_profile">Your Profile</string>
+    <string name="save">Save</string>
+    <string name="filter_servers">Filter Servers</string>
+    <string name="switch_to_light">Switch to Light</string>
+    <string name="switch_to_dark">Switch to Dark</string>
+    <string name="current_lang">Current: %1$s</string>
+
+    <!-- Likes -->
+    <string name="liked_profiles">Liked Profiles</string>
+    <string name="no_likes_yet">No likes yet</string>
+    <string name="no_likes_description">Swipe right on profiles you like to see them here</string>
+    <string name="remove_like">Remove like</string>
+
+    <!-- New tab -->
+    <string name="tab_likes">Likes</string>
+
+
+    <!-- New profile fields -->
+    <string name="age">Age</string>
+    <string name="gender">Gender</string>
+    <string name="play_style">Play Style</string>
+    <string name="microphone">Microphone</string>
+    <string name="goals">Goals</string>
+    <string name="play_schedule">Play Schedule</string>
+    <string name="rank_tier">Rank Tier</string>
+    <string name="rank_division">Division</string>
+
+    <!-- Selection options -->
+    <string name="prefer_not_to_say">Prefer not to say</string>
+    <string name="aggressive">Aggressive</string>
+    <string name="passive">Passive</string>
+    <string name="strategic">Strategic</string>
+    <string name="roaming">Roaming</string>
+    <string name="farming">Farming</string>
+    <string name="team_player">Team player</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="sometimes">Sometimes</string>
+    <string name="ranked_climbing">Ranked climbing</string>
+    <string name="casual_fun">Casual fun</string>
+    <string name="learning">Learning</string>
+    <string name="tournaments">Tournaments</string>
+    <string name="making_friends">Making friends</string>
+
+    <!-- Card titles -->
+    <string name="basic_information">Basic Information</string>
+    <string name="rank_information">Rank Information</string>
+    <string name="personal_information">Personal Information</string>
+    <string name="gaming_preferences">Gaming Preferences</string>
+    <string name="profile_preview">Profile Preview</string>
+
+
 </resources>

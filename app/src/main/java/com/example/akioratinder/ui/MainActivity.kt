@@ -2,37 +2,60 @@ package com.example.akioratinder.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import com.example.akioratinder.ui.theme.AkioraTinderTheme
 import com.example.akioratinder.R
-
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
-import com.example.akioratinder.data.UserProfile
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.example.akioratinder.services.ProfilesManager
+import com.example.akioratinder.services.GlobalSettingsManager
+import com.example.akioratinder.services.LikesManager
+import com.example.akioratinder.services.SwipeManager
+import com.example.akioratinder.storage.ProfilesStore
+import com.example.akioratinder.storage.SessionSwipeStore
+import com.example.akioratinder.storage.ThemeLanguageStore
+import com.example.akioratinder.ui.components.SwipeableCardStack
+import com.example.akioratinder.viewmodels.ThemeViewModel
+
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
+    private lateinit var themeStore: ThemeLanguageStore
+    private lateinit var profilesStore: ProfilesStore
 
+    private val themeViewModel: ThemeViewModel by viewModels {
+        ThemeViewModelFactory(themeStore)
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        GlobalSettingsManager.initialize(this)
+        ProfilesManager.initialize(this)
+        SwipeManager.initialize(this)
+        themeStore = ThemeLanguageStore(this)
+        profilesStore = ProfilesStore(this)
+
         setContent {
-            AkioraTinderTheme {
+            val darkTheme by themeViewModel.darkTheme.collectAsState()
+            GlobalSettingsManager.ObserveSettings()
+
+            AkioraTinderTheme(darkTheme = darkTheme) {
                 Scaffold(
                     topBar = { TopBar() },
                     bottomBar = { BottomNav(0) }
@@ -46,59 +69,26 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
 @Composable
 fun ProfileListScreen() {
-    val profiles = listOf(
-        UserProfile("AhriQueen", "EUW", "Mid", "Diamond", "Люблю играть в команде"),
-        UserProfile("LeeSinMaster", "NA", "Jungle", "Platinum", "Опытный джанглер, ищу тиммейтов"),
-        UserProfile("JinxFanatic", "KR", "ADC", "Gold", "Весёлый ADC, люблю фановый дэмедж"),
-        UserProfile("BardSupport", "EUW", "Support", "Platinum", "Играю на саппорте, всегда помогаю команде"),
-        UserProfile("ZedShadow", "RU", "Mid", "Diamond", "Люблю соло-мид и агрессивный стиль"),
-        UserProfile("ThreshHook", "EUW", "Support", "Gold", "Обожаю ловить флеши крюком"),
-        UserProfile("EzrealSniper", "NA", "ADC", "Platinum", "Механики выше среднего")
+    val context = LocalContext.current
+    val profiles by ProfilesManager.getAllProfiles(context).collectAsState()
+
+    val sessionSwipeStore = remember { SessionSwipeStore(context) }
+    val filteredProfiles = profiles.filter {
+        !sessionSwipeStore.wasSwiped(it.summonerName)
+    }
+
+    SwipeableCardStack(
+        profiles = filteredProfiles,
+        onSwipeLeft = { profile ->
+            sessionSwipeStore.markLeft(profile.summonerName)
+        },
+        onSwipeRight = { profile ->
+            sessionSwipeStore.markRight(profile.summonerName)
+            LikesManager.addLike(context, profile)
+        }
     )
-
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-        items(profiles) { profile ->
-            ProfileCard(profile)
-        }
-    }
-
-
-}
-@Composable
-fun ProfileCard(profile: UserProfile) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        elevation = CardDefaults.cardElevation(8.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-
-                Image(
-                    painter = painterResource(id = R.drawable.logof),
-                    contentDescription = "Avatar",
-                    modifier = Modifier.size(60.dp)
-                )
-
-                Spacer(Modifier.width(16.dp))
-
-                Column {
-                    Text(profile.summonerName, style = MaterialTheme.typography.titleMedium)
-                    Text("${profile.server} • ${profile.role} • ${profile.rank}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            Text(profile.bio, style = MaterialTheme.typography.bodySmall)
-        }
-    }
 }
 
 
@@ -106,7 +96,7 @@ fun ProfileCard(profile: UserProfile) {
 @Composable
 fun TopBar() {
     TopAppBar(
-        title = { Text("Akiora") },
+        title = { Text(stringResource(R.string.app_name)) },
         navigationIcon = {
             IconButton(onClick = {}) {
                 Icon(
@@ -134,6 +124,17 @@ fun BottomNav(current: Int) {
         )
 
         NavigationBarItem(
+            icon = { Icon(Icons.Default.Favorite, contentDescription = null) },
+            label = { Text(stringResource(R.string.tab_likes)) },
+            selected = current == 3,
+            onClick = {
+                if (context !is LikesActivity) {
+                    context.startActivity(Intent(context, LikesActivity::class.java))
+                }
+            }
+        )
+
+        NavigationBarItem(
             icon = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
             label = { Text(stringResource(R.string.tab_profile)) },
             selected = current == 1,
@@ -156,4 +157,3 @@ fun BottomNav(current: Int) {
         )
     }
 }
-

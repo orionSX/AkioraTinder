@@ -2,11 +2,13 @@
 <resources>
 
     <style name="Theme.AkioraTinder" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.AkioraTinder.Dark" parent="android:Theme.Material.NoActionBar" />
     <!-- Тема для Splash Screen -->
     <style name="Theme.AkioraTinder.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_screen_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
-        <item name="windowSplashScreenAnimationDuration">1000</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+
+        <item name="windowSplashScreenAnimationDuration">1</item>
         <item name="postSplashScreenTheme">@style/Theme.AkioraTinder</item>
     </style>
 </resources>

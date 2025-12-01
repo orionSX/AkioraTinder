@@ -56,8 +56,10 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.0")
     implementation("androidx.navigation:navigation-compose:2.7.5")
     implementation("androidx.compose.material3:material3:1.1.2")
-
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.firebase.crashlytics.buildtools)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
