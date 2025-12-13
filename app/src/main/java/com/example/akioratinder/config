@@ -1,0 +1,13 @@
+package com.example.akioratinder.config
+
+object BackendConfig {
+    // Значение по умолчанию, которое можно изменить методом setBackendUrl
+    private var _backendUrl: String = "https://your-backend-url.com"
+    
+    val backendUrl: String
+        get() = _backendUrl
+    
+    fun setBackendUrl(url: String) {
+        _backendUrl = url.trimEnd('/')
+    }
+}
