@@ -1,8 +1,8 @@
 package com.example.akioratinder.config
 
 object BackendConfig {
-    // Значение по умолчанию, которое можно изменить методом setBackendUrl
-    private var _backendUrl: String = "https://your-backend-url.com"
+
+    private var _backendUrl: String = "https://orion-vuz-mobile.vercel.app/"
     
     val backendUrl: String
         get() = _backendUrl
