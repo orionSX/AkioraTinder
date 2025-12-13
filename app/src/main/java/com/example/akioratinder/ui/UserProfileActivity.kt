@@ -1,10 +1,8 @@
 package com.example.akioratinder.ui
 
-import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,55 +13,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import com.example.akioratinder.localization.LocaleHelper
-import com.example.akioratinder.services.GlobalSettingsManager
-import com.example.akioratinder.services.ProfilesManager
-import com.example.akioratinder.storage.ThemeLanguageStore
-import com.example.akioratinder.storage.UserProfileStore
+import com.example.akioratinder.data.*
+import com.example.akioratinder.services.ApiService
+import com.example.akioratinder.services.AuthManager
 import com.example.akioratinder.ui.theme.AkioraTinderTheme
-import com.example.akioratinder.R
-import com.example.akioratinder.data.UserProfile
-import com.example.akioratinder.viewmodels.ThemeViewModel
-import com.example.akioratinder.viewmodels.UserProfileViewModel
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
 
 class UserProfileActivity : ComponentActivity() {
-    private lateinit var themeStore: ThemeLanguageStore
-    private lateinit var userProfileStore: UserProfileStore
-
-    private val themeViewModel: ThemeViewModel by viewModels {
-        ThemeViewModelFactory(themeStore)
-    }
-
-    private val userProfileViewModel: UserProfileViewModel by viewModels {
-        UserProfileViewModelFactory(userProfileStore)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
-        GlobalSettingsManager.initialize(this)
-        ProfilesManager.initialize(this) // Инициализируем менеджер профилей
-        themeStore = ThemeLanguageStore(this)
-        userProfileStore = UserProfileStore(this)
-
         super.onCreate(savedInstanceState)
 
         setContent {
-            val darkTheme by themeViewModel.darkTheme.collectAsState()
-            GlobalSettingsManager.ObserveSettings()
-
-            AkioraTinderTheme(darkTheme = darkTheme) {
+            AkioraTinderTheme {
                 Scaffold(
-                    topBar = {
-                        TopBar(
-
-                        )
-                    },
+                    topBar = { TopBar() },
                     bottomBar = { BottomNav(current = 1) }
                 ) { padding ->
                     Box(
@@ -71,521 +37,215 @@ class UserProfileActivity : ComponentActivity() {
                             .padding(padding)
                             .fillMaxSize()
                     ) {
-                        EnhancedUserProfileScreen(
-                            userProfileViewModel = userProfileViewModel
-                        )
+                        UserProfileScreen()
                     }
                 }
             }
         }
     }
-
-    override fun attachBaseContext(newBase: Context) {
-        val s = ThemeLanguageStore(newBase)
-        val lang = runBlocking { s.langFlow.first() }
-        val ctx = LocaleHelper.setLocale(newBase, lang)
-        super.attachBaseContext(ctx)
-    }
 }
 
 @Composable
-fun EnhancedUserProfileScreen(userProfileViewModel: UserProfileViewModel) {
+fun UserProfileScreen() {
     val context = LocalContext.current
-    val userProfile by userProfileViewModel.getCurrentUserProfileFlow(context).collectAsState()
-    val selectionOptions = remember { userProfileViewModel.getSelectionOptions(context) }
+    val coroutineScope = rememberCoroutineScope()
+    val authManager = remember { AuthManager.getInstance(context) }
+    val apiService = remember { ApiService.getInstance(context) }
 
+    val user by authManager.currentUser.collectAsState()
+    val playerProfile by authManager.currentPlayerProfile.collectAsState()
 
-    var summonerName by remember { mutableStateOf(userProfile.summonerName) }
-    var server by remember { mutableStateOf(userProfile.server) }
-    var role by remember { mutableStateOf(userProfile.role) }
-    var rankTier by remember { mutableStateOf(userProfile.rankTier) }
-    var rankDivision by remember { mutableStateOf(userProfile.rankDivision) }
-    var bio by remember { mutableStateOf(userProfile.bio) }
-    var age by remember { mutableStateOf(userProfile.age) }
-    var gender by remember { mutableStateOf(userProfile.gender) }
-    var playStyle by remember { mutableStateOf(userProfile.playStyle) }
-    var microphone by remember { mutableStateOf(userProfile.microphone) }
-    var goals by remember { mutableStateOf(userProfile.goals) }
-    var playSchedule by remember { mutableStateOf(userProfile.playSchedule) }
-    var isSaving by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var showPlayerForm by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
 
-
-    LaunchedEffect(userProfile) {
-        summonerName = userProfile.summonerName
-        server = userProfile.server
-        role = userProfile.role
-        rankTier = userProfile.rankTier
-        rankDivision = userProfile.rankDivision
-        bio = userProfile.bio
-        age = userProfile.age
-        gender = userProfile.gender
-        playStyle = userProfile.playStyle
-        microphone = userProfile.microphone
-        goals = userProfile.goals
-        playSchedule = userProfile.playSchedule
+    LaunchedEffect(Unit) {
+        authManager.loadPlayerProfile()
     }
-
-    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-
-        ProfileHeader()
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-
-        BasicInfoCard(
-            summonerName = summonerName,
-            onSummonerNameChange = { summonerName = it },
-            server = server,
-            onServerChange = { server = it },
-            role = role,
-            onRoleChange = { role = it },
-            selectionOptions = selectionOptions
-        )
+        // Информация пользователя
+        UserInfoCard(user = user)
 
         Spacer(modifier = Modifier.height(16.dp))
 
-
-        RankInfoCard(
-            rankTier = rankTier,
-            onRankTierChange = { rankTier = it },
-            rankDivision = rankDivision,
-            onRankDivisionChange = { rankDivision = it },
-            showDivision = rankTier in listOf("Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond"),
-            selectionOptions = selectionOptions
+        // Игровой профиль
+        PlayerProfileCard(
+            playerProfile = playerProfile,
+            onEditClick = { showPlayerForm = true }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-        PersonalInfoCard(
-            age = age,
-            onAgeChange = { age = it },
-            gender = gender,
-            onGenderChange = { gender = it },
-            bio = bio,
-            onBioChange = { bio = it },
-            selectionOptions = selectionOptions
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-        GamingPreferencesCard(
-            playStyle = playStyle,
-            onPlayStyleChange = { playStyle = it },
-            microphone = microphone,
-            onMicrophoneChange = { microphone = it },
-            goals = goals,
-            onGoalsChange = { goals = it },
-            playSchedule = playSchedule,
-            onPlayScheduleChange = { playSchedule = it },
-            selectionOptions = selectionOptions
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-
-        SaveProfileButton(
-            isSaving = isSaving,
-            onSaveClick = {
-                isSaving = true
-                userProfileViewModel.updateProfile(
-                    context,
-                    summonerName, server, role, rankTier, rankDivision, bio,
-                    age, gender, playStyle, microphone, goals, playSchedule
-                )
-                isSaving = false
-
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Profile Preview
-        if (!isSaving) {
-            EnhancedProfilePreview(userProfile)
-        }
-    }
-}
-
-@Composable
-fun ProfileHeader() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Icon(
-            imageVector = Icons.Default.Person,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(32.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = stringResource(R.string.your_profile),
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-}
-
-@Composable
-fun BasicInfoCard(
-    summonerName: String,
-    onSummonerNameChange: (String) -> Unit,
-    server: String,
-    onServerChange: (String) -> Unit,
-    role: String,
-    onRoleChange: (String) -> Unit,
-    selectionOptions: com.example.akioratinder.viewmodels.SelectionOptions
-) {
-    ProfileCard(title = stringResource(R.string.basic_information)) {
-        // Summoner Name
-        OutlinedTextField(
-            value = summonerName,
-            onValueChange = onSummonerNameChange,
-            label = { Text(stringResource(R.string.summoner_name)) },
-            leadingIcon = { Icon(Icons.Default.Person, null) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Server
-        LabeledDropdown(
-            label = stringResource(R.string.server),
-            selectedValue = server,
-            onValueSelected = onServerChange,
-            options = selectionOptions.servers,
-            leadingIcon = Icons.Default.Public
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Role
-        LabeledDropdown(
-            label = stringResource(R.string.role),
-            selectedValue = role,
-            onValueSelected = onRoleChange,
-            options = selectionOptions.roles,
-            leadingIcon = Icons.Default.SportsEsports
-        )
-    }
-}
-
-@Composable
-fun RankInfoCard(
-    rankTier: String,
-    onRankTierChange: (String) -> Unit,
-    rankDivision: String,
-    onRankDivisionChange: (String) -> Unit,
-    showDivision: Boolean,
-    selectionOptions: com.example.akioratinder.viewmodels.SelectionOptions
-) {
-    ProfileCard(title = stringResource(R.string.rank_information)) {
-        // Rank Tier
-        LabeledDropdown(
-            label = stringResource(R.string.rank_tier),
-            selectedValue = rankTier,
-            onValueSelected = onRankTierChange,
-            options = selectionOptions.rankTiers,
-            leadingIcon = Icons.Default.Leaderboard
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Rank Division (only show for tiers that have divisions)
-        if (showDivision) {
-            LabeledDropdown(
-                label = stringResource(R.string.rank_division),
-                selectedValue = rankDivision,
-                onValueSelected = onRankDivisionChange,
-                options = selectionOptions.rankDivisions,
-                leadingIcon = Icons.Default.Numbers
-            )
-        }
-    }
-}
-
-@Composable
-fun PersonalInfoCard(
-    age: String,
-    onAgeChange: (String) -> Unit,
-    gender: String,
-    onGenderChange: (String) -> Unit,
-    bio: String,
-    onBioChange: (String) -> Unit,
-    selectionOptions: com.example.akioratinder.viewmodels.SelectionOptions
-) {
-    ProfileCard(title = stringResource(R.string.personal_information)) {
-        // Age
-        OutlinedTextField(
-            value = age,
-            onValueChange = onAgeChange,
-            label = { Text(stringResource(R.string.age)) },
-            leadingIcon = { Icon(Icons.Default.Cake, null) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Gender
-        LabeledDropdown(
-            label = stringResource(R.string.gender),
-            selectedValue = gender,
-            onValueSelected = onGenderChange,
-            options = selectionOptions.genders,
-            leadingIcon = Icons.Default.Person
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Bio
-        OutlinedTextField(
-            value = bio,
-            onValueChange = onBioChange,
-            label = { Text(stringResource(R.string.bio)) },
-            leadingIcon = { Icon(Icons.Default.Edit, null) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp),
-            minLines = 4,
-            singleLine = false
-        )
-    }
-}
-
-@Composable
-fun GamingPreferencesCard(
-    playStyle: String,
-    onPlayStyleChange: (String) -> Unit,
-    microphone: String,
-    onMicrophoneChange: (String) -> Unit,
-    goals: String,
-    onGoalsChange: (String) -> Unit,
-    playSchedule: String,
-    onPlayScheduleChange: (String) -> Unit,
-    selectionOptions: com.example.akioratinder.viewmodels.SelectionOptions
-) {
-    ProfileCard(title = stringResource(R.string.gaming_preferences)) {
-        // Play Style
-        LabeledDropdown(
-            label = stringResource(R.string.play_style),
-            selectedValue = playStyle,
-            onValueSelected = onPlayStyleChange,
-            options = selectionOptions.playStyles,
-            leadingIcon = Icons.Default.PlayArrow
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Microphone
-        LabeledDropdown(
-            label = stringResource(R.string.microphone),
-            selectedValue = microphone,
-            onValueSelected = onMicrophoneChange,
-            options = selectionOptions.microphoneOptions,
-            leadingIcon = Icons.Default.Mic
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Goals
-        LabeledDropdown(
-            label = stringResource(R.string.goals),
-            selectedValue = goals,
-            onValueSelected = onGoalsChange,
-            options = selectionOptions.goals,
-            leadingIcon = Icons.Default.Flag
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-        LabeledDropdown(
-            label = stringResource(R.string.play_schedule),
-            selectedValue = playSchedule,
-            onValueSelected = onPlayScheduleChange,
-            options = selectionOptions.playSchedules,
-            leadingIcon = Icons.Default.Schedule
-        )
-    }
-}
-
-@Composable
-fun ProfileCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            content()
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun LabeledDropdown(
-    label: String,
-    selectedValue: String,
-    onValueSelected: (String) -> Unit,
-    options: List<String>,
-    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
-        ) {
-            OutlinedTextField(
-                value = selectedValue.ifEmpty { "Select $label" },
-                onValueChange = {},
-                readOnly = true,
-                leadingIcon = { Icon(leadingIcon, null) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.heightIn(max = 240.dp)
-            ) {
-                options.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option) },
-                        onClick = {
-                            onValueSelected(option)
-                            expanded = false
+        if (showPlayerForm) {
+            Spacer(modifier = Modifier.height(16.dp))
+            PlayerProfileForm(
+                existingProfile = playerProfile,
+                onSave = { formData ->
+                    coroutineScope.launch {
+                        isLoading = true
+                        try {
+                            if (playerProfile != null) {
+                                val update = UpdateFormRequest(
+                                    description = formData.description,
+                                    account = formData.account,
+                                    roles = formData.roles,
+                                    rolesLookingFor = formData.rolesLookingFor,
+                                    personData = formData.personData,
+                                    gameTypes = formData.gameTypes
+                                )
+                                authManager.updatePlayerProfile(playerProfile!!.id, update)
+                            } else {
+                                val createRequest = CreateFormRequest(
+                                    description = formData.description,
+                                    account = formData.account,
+                                    roles = formData.roles,
+                                    rolesLookingFor = formData.rolesLookingFor,
+                                    personData = formData.personData,
+                                    creatorId = user?.id ?: "",
+                                    gameTypes = formData.gameTypes
+                                )
+                                authManager.createPlayerProfile(createRequest)
+                            }
+                            showPlayerForm = false
+                        } catch (e: Exception) {
+                            error = e.message
+                        } finally {
+                            isLoading = false
                         }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SaveProfileButton(isSaving: Boolean, onSaveClick: () -> Unit) {
-    Button(
-        onClick = onSaveClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        enabled = !isSaving,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        )
-    ) {
-        if (isSaving) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
-                strokeWidth = 2.dp
+                    }
+                },
+                onCancel = { showPlayerForm = false },
+                isLoading = isLoading
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Saving...")
-        } else {
-            Icon(Icons.Default.Save, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+        }
+
+        if (error != null) {
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.save),
-                style = MaterialTheme.typography.bodyLarge
+                text = "Error: $error",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }
 }
 
 @Composable
-fun EnhancedProfilePreview(profile: UserProfile) {
-    val fullRank = if (profile.rankTier in listOf("Master", "Grandmaster", "Challenger")) {
-        profile.rankTier
-    } else {
-        "${profile.rankTier} ${profile.rankDivision}"
-    }
-
+fun UserInfoCard(user: UserProfile?) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = stringResource(R.string.profile_preview),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(bottom = 12.dp)
+                text = "User Information",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
 
-            // Basic info
-            if (profile.summonerName.isNotBlank()) {
-                ProfilePreviewRow("Summoner", profile.summonerName)
-            }
-            ProfilePreviewRow("Server", profile.server)
-            ProfilePreviewRow("Role", profile.role)
-            ProfilePreviewRow("Rank", fullRank)
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Personal info
-            if (profile.age.isNotBlank()) {
-                ProfilePreviewRow("Age", profile.age)
-            }
-            if (profile.gender.isNotBlank()) {
-                ProfilePreviewRow("Gender", profile.gender)
-            }
-            if (profile.bio.isNotBlank()) {
-                ProfilePreviewRow("About", profile.bio)
-            }
-
-            // Gaming preferences
-            if (profile.playStyle.isNotBlank()) {
-                ProfilePreviewRow("Play Style", profile.playStyle)
-            }
-            if (profile.microphone.isNotBlank()) {
-                ProfilePreviewRow("Microphone", profile.microphone)
-            }
-            if (profile.goals.isNotBlank()) {
-                ProfilePreviewRow("Goals", profile.goals)
-            }
-            if (profile.playSchedule.isNotBlank()) {
-                ProfilePreviewRow("Play Time", profile.playSchedule)
+            if (user != null) {
+                InfoRow(label = "Name", value = user.name)
+                InfoRow(label = "Email", value = user.email)
+                user.age?.let { InfoRow(label = "Age", value = it.toString()) }
+                user.gender?.let { InfoRow(label = "Gender", value = it.name) }
+                user.discord?.let { InfoRow(label = "Discord", value = it) }
+            } else {
+                Text("No user data available")
             }
         }
     }
 }
 
 @Composable
-fun ProfilePreviewRow(label: String, value: String) {
+fun PlayerProfileCard(
+    playerProfile: PlayerProfile?,
+    onEditClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Player Profile",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Button(onClick = onEditClick) {
+                    Text(
+                        text = if (playerProfile != null) "Edit" else "Create"
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (playerProfile != null) {
+                if (playerProfile.description.isNotBlank()) {
+                    Text(
+                        text = playerProfile.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                InfoRow(
+                    label = "Account",
+                    value = "${playerProfile.account.name}#${playerProfile.account.tag} (${playerProfile.account.server})"
+                )
+                InfoRow(
+                    label = "Roles",
+                    value = playerProfile.gameData.roles.joinToString(", ") { it.name }
+                )
+                InfoRow(
+                    label = "Looking for",
+                    value = playerProfile.gameData.rolesLookingFor.joinToString(", ") { it.name }
+                )
+                InfoRow(
+                    label = "Game types",
+                    value = playerProfile.gameData.gameTypes.joinToString(", ") { it.name }
+                )
+
+                playerProfile.personData.minAge?.let { minAge ->
+                    playerProfile.personData.maxAge?.let { maxAge ->
+                        InfoRow(label = "Age range", value = "$minAge - $maxAge")
+                    }
+                }
+
+                playerProfile.personData.gender?.let {
+                    InfoRow(label = "Preferred gender", value = it.name)
+                }
+
+                InfoRow(
+                    label = "Voice chat",
+                    value = if (playerProfile.personData.voice) "Yes" else "No"
+                )
+            } else {
+                Text(
+                    text = "No player profile created yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun InfoRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -595,36 +255,126 @@ fun ProfilePreviewRow(label: String, value: String) {
         Text(
             text = "$label:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
             fontWeight = FontWeight.Medium
         )
     }
 }
 
-// Factory classes
-class UserProfileViewModelFactory(
-    private val userProfileStore: UserProfileStore
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(UserProfileViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return UserProfileViewModel(userProfileStore) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
+// Простая форма для игрового профиля (упрощенная версия)
+@Composable
+fun PlayerProfileForm(
+    existingProfile: PlayerProfile?,
+    onSave: (CreateFormRequest) -> Unit,
+    onCancel: () -> Unit,
+    isLoading: Boolean
+) {
+    var description by remember { mutableStateOf(existingProfile?.description ?: "") }
+    var accountName by remember { mutableStateOf(existingProfile?.account?.name ?: "") }
+    var accountTag by remember { mutableStateOf(existingProfile?.account?.tag ?: "") }
+    var accountServer by remember { mutableStateOf(existingProfile?.account?.server ?: "") }
 
-class ThemeViewModelFactory(private val store: ThemeLanguageStore) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(ThemeViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return ThemeViewModel(store) as T
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = if (existingProfile != null) "Edit Player Profile" else "Create Player Profile",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Description") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = accountName,
+                    onValueChange = { accountName = it },
+                    label = { Text("Summoner Name") },
+                    modifier = Modifier.weight(2f)
+                )
+
+                OutlinedTextField(
+                    value = accountTag,
+                    onValueChange = { accountTag = it },
+                    label = { Text("Tag") },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = accountServer,
+                onValueChange = { accountServer = it },
+                label = { Text("Server (EUW, NA, etc.)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onCancel) {
+                    Text("Cancel")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+                        val account = Account(accountName, accountServer, accountTag)
+                        // TODO: Добавить остальные поля формы
+                        val formData = CreateFormRequest(
+                            description = description,
+                            account = account,
+                            roles = listOf(Role.TOP, Role.JG), // Пример
+                            rolesLookingFor = listOf(Role.MID, Role.ADC, Role.SUP), // Пример
+                            personData = PersonData(
+                                minAge = 18,
+                                maxAge = 30,
+                                gender = Gender.ANY,
+                                voice = true
+                            ),
+                            creatorId = "", // Будет установлено в Activity
+                            gameTypes = listOf(GameType.SOLOQ, GameType.FLEX) // Пример
+                        )
+                        onSave(formData)
+                    },
+                    enabled = !isLoading && accountName.isNotBlank() && accountTag.isNotBlank() && accountServer.isNotBlank()
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Saving...")
+                    } else {
+                        Text("Save")
+                    }
+                }
+            }
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

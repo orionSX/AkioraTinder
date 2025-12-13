@@ -25,7 +25,6 @@ object GlobalSettingsManager {
         return themeLanguageStore!!
     }
 
-
     @Composable
     fun ObserveSettings() {
         val context = LocalContext.current
@@ -34,13 +33,11 @@ object GlobalSettingsManager {
         val darkTheme by store.darkThemeFlow.collectAsState()
         val language by store.langFlow.collectAsState()
 
-
         DisposableEffect(darkTheme, language) {
-            println("Settings changed - Theme: $darkTheme, Language: $language")
+            // Можно здесь обновлять тему приложения если нужно
             onDispose {}
         }
     }
-
 
     fun getDarkTheme(context: Context): Boolean {
         return getStore(context).getDarkTheme()

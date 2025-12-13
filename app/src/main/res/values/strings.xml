@@ -79,6 +79,9 @@
     <string name="personal_information">Personal Information</string>
     <string name="gaming_preferences">Gaming Preferences</string>
     <string name="profile_preview">Profile Preview</string>
+    <string name="err_password_mismatch">passwords missmatch</string>
+    <string name="confirm_password">confirm password</string>
+    <string name="invite_code_optional">validation code</string>
 
 
 </resources>

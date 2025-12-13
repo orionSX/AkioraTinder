@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.akioratinder.data.UserProfile
 import com.example.akioratinder.services.ProfilesManager
-import com.example.akioratinder.storage.UserProfileStore
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 

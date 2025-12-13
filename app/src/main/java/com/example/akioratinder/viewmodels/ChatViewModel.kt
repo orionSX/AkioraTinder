@@ -2,7 +2,6 @@ package com.example.akioratinder.viewmodels
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
-import com.example.akioratinder.services.ChatManager
 import com.example.akioratinder.services.ProfilesManager
 import kotlinx.coroutines.flow.StateFlow
 import androidx.lifecycle.ViewModelProvider

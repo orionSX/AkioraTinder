@@ -2,17 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <application
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <application
         android:allowBackup="true"
         android:label="@string/app_name"
         android:icon="@drawable/logof"
-        android:theme="@style/Theme.AkioraTinder.Dark"
-        android:supportsRtl="true">
-
+        android:theme="@style/Theme.AkioraTinder"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31">
 
         <activity
-            android:name="com.example.akioratinder.ui.SplashActivity"
+            android:name=".ui.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.AkioraTinder.Splash">
             <intent-filter>
@@ -20,6 +23,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity android:name=".ui.SettingsActivity" />
         <activity android:name=".ui.UserProfileActivity" />
         <activity android:name=".ui.MainActivity"/>
@@ -29,6 +33,5 @@
         <activity android:name=".ui.ChatActivity"/>
 
     </application>
-
 
 </manifest>

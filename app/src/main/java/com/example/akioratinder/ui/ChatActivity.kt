@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,50 +18,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import com.example.akioratinder.data.ChatMessage
-import com.example.akioratinder.services.ChatManager
-import com.example.akioratinder.services.GlobalSettingsManager
-import com.example.akioratinder.services.ProfilesManager
-import com.example.akioratinder.storage.ThemeLanguageStore
+import com.example.akioratinder.services.ApiService
+import com.example.akioratinder.services.AuthManager
 import com.example.akioratinder.ui.theme.AkioraTinderTheme
-import com.example.akioratinder.viewmodels.ChatViewModel
-import com.example.akioratinder.viewmodels.ChatViewModelFactory
-import com.example.akioratinder.viewmodels.ThemeViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
 import java.text.SimpleDateFormat
 import java.util.*
 
 class ChatActivity : ComponentActivity() {
-    private lateinit var themeStore: ThemeLanguageStore
-    private lateinit var targetUser: String
-
-    private val themeViewModel: ThemeViewModel by viewModels {
-        ThemeViewModelFactory(themeStore)
-    }
-
-    private val chatViewModel: ChatViewModel by viewModels {
-        ChatViewModelFactory(targetUser)
-    }
+    private lateinit var chatId: String
+    private lateinit var targetUserName: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        targetUser = intent.getStringExtra("target_user") ?: "Unknown"
-
-        GlobalSettingsManager.initialize(this)
-        ChatManager.initialize(this)
-        themeStore = ThemeLanguageStore(this)
+        chatId = intent.getStringExtra("chat_id") ?: ""
+        targetUserName = intent.getStringExtra("target_user_name") ?: "User"
 
         super.onCreate(savedInstanceState)
 
         setContent {
-            val darkTheme by themeViewModel.darkTheme.collectAsState()
-
-            AkioraTinderTheme(darkTheme = darkTheme) {
+            AkioraTinderTheme {
                 Scaffold(
                     topBar = {
                         ChatTopBar(
-                            targetUser = targetUser,
+                            targetUser = targetUserName,
                             onBackClick = { onBackPressed() }
                         )
                     }
@@ -72,10 +52,7 @@ class ChatActivity : ComponentActivity() {
                             .padding(padding)
                             .fillMaxSize()
                     ) {
-                        ChatScreen(
-                            chatViewModel = chatViewModel,
-                            targetUser = targetUser
-                        )
+                        ChatScreen(chatId = chatId)
                     }
                 }
             }
@@ -84,30 +61,53 @@ class ChatActivity : ComponentActivity() {
 }
 
 @Composable
-fun ChatScreen(chatViewModel: ChatViewModel, targetUser: String) {
+fun ChatScreen(chatId: String) {
     val context = LocalContext.current
-    val currentUser = ProfilesManager.getCurrentUserProfile(context).summonerName
+    val coroutineScope = rememberCoroutineScope()
+    val apiService = remember { ApiService.getInstance(context) }
+    val authManager = remember { AuthManager.getInstance(context) }
 
-    val messages by chatViewModel.getMessagesFlow(context).collectAsState()
-
+    var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     var newMessageText by remember { mutableStateOf("") }
     val scrollState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
+
+    val currentUserId by authManager.currentUser.collectAsState()
+
+    LaunchedEffect(chatId) {
+        if (chatId.isNotEmpty()) {
+            coroutineScope.launch {
+                try {
+                    messages = apiService.getMessages(chatId)
+                    isLoading = false
+                } catch (e: Exception) {
+                    // Обработка ошибки
+                    isLoading = false
+                }
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
-
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 16.dp),
-            state = scrollState,
-            reverseLayout = true
-        ) {
-            items(messages, key = { it.id }) { message ->
-                ChatMessageItem(
-                    message = message,
-                    isOwnMessage = message.senderId == currentUser
-                )
+        if (isLoading) {
+            Box(modifier = Modifier.weight(1f)) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                state = scrollState,
+                reverseLayout = true
+            ) {
+                items(messages, key = { it.id }) { message ->
+                    val isOwnMessage = message.creatorId == currentUserId?.id
+                    ChatMessageItem(
+                        message = message,
+                        isOwnMessage = isOwnMessage
+                    )
+                }
             }
         }
 
@@ -118,7 +118,6 @@ fun ChatScreen(chatViewModel: ChatViewModel, targetUser: String) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-
             OutlinedTextField(
                 value = newMessageText,
                 onValueChange = { newMessageText = it },
@@ -129,15 +128,23 @@ fun ChatScreen(chatViewModel: ChatViewModel, targetUser: String) {
 
             IconButton(
                 onClick = {
-                    if (newMessageText.isNotBlank()) {
-                        chatViewModel.sendMessage(context, targetUser, newMessageText)
-                        newMessageText = ""
+                    if (newMessageText.isNotBlank() && chatId.isNotEmpty()) {
                         coroutineScope.launch {
-                            scrollState.animateScrollToItem(0)
+                            try {
+                                apiService.sendMessage(chatId, newMessageText)
+                                newMessageText = ""
+                                // Обновляем сообщения
+                                messages = apiService.getMessages(chatId)
+                                coroutineScope.launch {
+                                    scrollState.animateScrollToItem(0)
+                                }
+                            } catch (e: Exception) {
+                                // Обработка ошибки
+                            }
                         }
                     }
                 },
-                enabled = newMessageText.isNotBlank()
+                enabled = newMessageText.isNotBlank() && chatId.isNotEmpty()
             ) {
                 Icon(Icons.Default.Send, contentDescription = "Send")
             }
@@ -166,7 +173,7 @@ fun ChatMessageItem(message: ChatMessage, isOwnMessage: Boolean) {
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = message.message,
+                    text = message.text,
                     color = if (isOwnMessage)
                         MaterialTheme.colorScheme.onPrimary
                     else

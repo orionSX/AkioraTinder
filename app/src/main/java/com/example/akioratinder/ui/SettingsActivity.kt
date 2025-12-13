@@ -12,12 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.akioratinder.localization.LocaleHelper
+import com.example.akioratinder.services.AuthManager
 import com.example.akioratinder.services.GlobalSettingsManager
 import com.example.akioratinder.storage.ThemeLanguageStore
-import com.example.akioratinder.ui.adapters.ServerFilterAdapter
 import com.example.akioratinder.ui.theme.AkioraTinderTheme
 import com.example.akioratinder.R
 import com.example.akioratinder.viewmodels.ThemeViewModel
+import com.example.akioratinder.viewmodels.ThemeViewModelFactory
+import kotlinx.coroutines.runBlocking
 
 class SettingsActivity : ComponentActivity() {
     private lateinit var store: ThemeLanguageStore
@@ -26,9 +28,12 @@ class SettingsActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Инициализируем глобальный менеджер
-        GlobalSettingsManager.initialize(this)
+        // Инициализируем хранилище
         store = ThemeLanguageStore(this)
+        GlobalSettingsManager.initialize(this)
+
+        // Инициализируем сервисы
+        AuthManager.getInstance(this)
 
         super.onCreate(savedInstanceState)
 
@@ -36,7 +41,6 @@ class SettingsActivity : ComponentActivity() {
             val darkTheme by themeViewModel.darkTheme.collectAsState()
             val lang by themeViewModel.currentLanguage.collectAsState()
 
-            // Глобальный наблюдатель настроек БЕЗ автоматического recreate
             GlobalSettingsManager.ObserveSettings()
 
             AkioraTinderTheme(darkTheme = darkTheme) {
@@ -48,7 +52,6 @@ class SettingsActivity : ComponentActivity() {
                         SettingsScreen(
                             themeViewModel = themeViewModel,
                             onLanguageChangeRequest = { newLang ->
-                                // recreate вызывается только при явном запросе
                                 recreateWithNewLanguage(newLang)
                             }
                         )
@@ -59,7 +62,6 @@ class SettingsActivity : ComponentActivity() {
     }
 
     private fun recreateWithNewLanguage(newLang: String) {
-        // Устанавливаем язык и пересоздаем активность
         GlobalSettingsManager.setLanguage(this, newLang)
         recreate()
     }
@@ -71,6 +73,7 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
+
 @Composable
 fun SettingsScreen(
     themeViewModel: ThemeViewModel,
@@ -79,11 +82,8 @@ fun SettingsScreen(
     val dark by themeViewModel.darkTheme.collectAsState()
     val lang by themeViewModel.currentLanguage.collectAsState()
 
-    var selectedServer by remember { mutableStateOf<String?>(null) }
-    val servers = listOf("EUW", "NA", "KR", "RU", "EUNE", "BR")
-
     Column(modifier = Modifier.padding(20.dp)) {
-        Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineMedium)
+        Text("Settings", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(24.dp))
 
         // Настройки темы
@@ -93,7 +93,7 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = stringResource(R.string.switch_theme),
+                    text = "Theme",
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(Modifier.height(12.dp))
@@ -103,9 +103,9 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = if (dark)
-                            stringResource(R.string.switch_to_light)
+                            "Switch to Light Theme"
                         else
-                            stringResource(R.string.switch_to_dark)
+                            "Switch to Dark Theme"
                     )
                 }
             }
@@ -120,7 +120,7 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = stringResource(R.string.switch_lang),
+                    text = "Language",
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(Modifier.height(12.dp))
@@ -132,29 +132,8 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(stringResource(R.string.current_lang, lang.uppercase()))
+                    Text("Current: ${lang.uppercase()}")
                 }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Фильтр серверов
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = stringResource(R.string.filter_servers),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(Modifier.height(12.dp))
-                ServerFilterAdapter(
-                    servers = servers,
-                    selectedServer = selectedServer,
-                    onServerSelected = { selectedServer = it }
-                )
             }
         }
 
@@ -167,22 +146,21 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text =stringResource(R.string.reset_to_default),
+                    text = "Reset Settings",
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = {
                         themeViewModel.resetToDefault()
-
                         onLanguageChangeRequest("ru")
                     },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = stringResource(R.string.reset_to_default),
-                        style = MaterialTheme.typography.titleMedium
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
                     )
+                ) {
+                    Text("Reset to Default")
                 }
             }
         }

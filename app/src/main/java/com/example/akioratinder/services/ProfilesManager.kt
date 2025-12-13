@@ -2,8 +2,6 @@ package com.example.akioratinder.services
 
 import android.content.Context
 import com.example.akioratinder.data.UserProfile
-import com.example.akioratinder.storage.ProfilesStore
-import com.example.akioratinder.storage.UserProfileStore
 import kotlinx.coroutines.flow.StateFlow
 
 

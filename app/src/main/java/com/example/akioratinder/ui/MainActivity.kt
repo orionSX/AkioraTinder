@@ -2,7 +2,6 @@ package com.example.akioratinder.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -10,33 +9,27 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import com.example.akioratinder.data.*
+import com.example.akioratinder.services.*
+import com.example.akioratinder.storage.*
+import com.example.akioratinder.ui.components.SwipeableCardStack
 import com.example.akioratinder.ui.theme.AkioraTinderTheme
 import com.example.akioratinder.R
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
-import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import com.example.akioratinder.services.ProfilesManager
-import com.example.akioratinder.services.GlobalSettingsManager
-import com.example.akioratinder.services.LikesManager
-import com.example.akioratinder.services.SwipeManager
-import com.example.akioratinder.storage.ProfilesStore
-import com.example.akioratinder.storage.SessionSwipeStore
-import com.example.akioratinder.storage.ThemeLanguageStore
-import com.example.akioratinder.ui.components.SwipeableCardStack
 import com.example.akioratinder.viewmodels.ThemeViewModel
-
+import com.example.akioratinder.viewmodels.ThemeViewModelFactory
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var themeStore: ThemeLanguageStore
-    private lateinit var profilesStore: ProfilesStore
 
     private val themeViewModel: ThemeViewModel by viewModels {
         ThemeViewModelFactory(themeStore)
@@ -45,11 +38,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        GlobalSettingsManager.initialize(this)
-        ProfilesManager.initialize(this)
-        SwipeManager.initialize(this)
+        // Инициализируем хранилище темы
         themeStore = ThemeLanguageStore(this)
-        profilesStore = ProfilesStore(this)
+        GlobalSettingsManager.initialize(this)
+
+        // Инициализируем API сервисы
+        ApiService.getInstance(this)
+        AuthManager.getInstance(this)
 
         setContent {
             val darkTheme by themeViewModel.darkTheme.collectAsState()
@@ -68,29 +63,81 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
 fun ProfileListScreen() {
     val context = LocalContext.current
-    val profiles by ProfilesManager.getAllProfiles(context).collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val authManager = remember { AuthManager.getInstance(context) }
+    val apiService = remember { ApiService.getInstance(context) }
 
-    val sessionSwipeStore = remember { SessionSwipeStore(context) }
-    val filteredProfiles = profiles.filter {
-        !sessionSwipeStore.wasSwiped(it.summonerName)
+    var profiles by remember { mutableStateOf<List<PlayerProfile>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            profiles = apiService.getForms()
+            // Фильтруем только активные формы и не свои
+            val currentUserId = authManager.currentUser.value?.id
+            profiles = profiles.filter {
+                it.active && !it.deleted && it.creatorId != currentUserId
+            }
+            isLoading = false
+        } catch (e: Exception) {
+            error = e.message
+            isLoading = false
+        }
     }
 
-    SwipeableCardStack(
-        profiles = filteredProfiles,
-        onSwipeLeft = { profile ->
-            sessionSwipeStore.markLeft(profile.summonerName)
-        },
-        onSwipeRight = { profile ->
-            sessionSwipeStore.markRight(profile.summonerName)
-            LikesManager.addLike(context, profile)
+    when {
+        isLoading -> {
+            Box(modifier = Modifier.fillMaxSize()) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
         }
-    )
+        error != null -> {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = "Error: $error",
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+        profiles.isEmpty() -> {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = "No profiles found",
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+        else -> {
+            SwipeableCardStack(
+                profiles = profiles,
+                onSwipeLeft = { profile ->
+                    coroutineScope.launch {
+                        try {
+                            apiService.dislikeForm(profile.id)
+                        } catch (e: Exception) {
+                            // Обработка ошибки
+                        }
+                    }
+                },
+                onSwipeRight = { profile ->
+                    coroutineScope.launch {
+                        try {
+                            apiService.likeForm(profile.id)
+                        } catch (e: Exception) {
+                            // Обработка ошибки
+                        }
+                    }
+                }
+            )
+        }
+    }
 }
 
+// Остальной код (TopBar, BottomNav) остается таким же
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

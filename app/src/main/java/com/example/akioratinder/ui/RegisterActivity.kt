@@ -1,7 +1,6 @@
 package com.example.akioratinder.ui
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -9,27 +8,41 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalContext
-import com.example.akioratinder.data.Preferences
+import androidx.compose.ui.unit.dp
+import com.example.akioratinder.services.AuthManager
 import com.example.akioratinder.ui.theme.AkioraTinderTheme
 import com.example.akioratinder.R
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
 
 class RegisterActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val prefs = Preferences(this)
         setContent {
             AkioraTinderTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val context = LocalContext.current
-                    RegisterScreen(onRegister = { email, password, server, role, rank ->
-                        prefs.saveUser(email, password, server, role, rank)
-                        Toast.makeText(context, context.getString(R.string.register_success), Toast.LENGTH_SHORT).show()
-                        finish()
+                    val coroutineScope = rememberCoroutineScope()
+
+                    RegisterScreen(onRegister = { name, email, password, code ->
+                        coroutineScope.launch {
+                            val authManager = AuthManager.getInstance(context)
+                            val response = authManager.register(
+                                name = name,
+                                email = email,
+                                password = password,
+                                code = if (code.isNotBlank()) code else null
+                            )
+
+                            if (response.success) {
+
+                                finish()
+                            }
+                        }
                     })
                 }
             }
@@ -37,66 +50,79 @@ class RegisterActivity : ComponentActivity() {
     }
 }
 
-
 @Composable
-fun RegisterScreen(onRegister: (String, String, String, String, String) -> Unit) {
+fun RegisterScreen(onRegister: (String, String, String, String) -> Unit) {
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var server by remember { mutableStateOf("") }
-    var role by remember { mutableStateOf("") }
-    var rank by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
 
+    var nameError by remember { mutableStateOf<String?>(null) }
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
-    var serverError by remember { mutableStateOf<String?>(null) }
-    var roleError by remember { mutableStateOf<String?>(null) }
-    var rankError by remember { mutableStateOf<String?>(null) }
-
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+    var codeError by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
 
     fun validate(): Boolean {
         var isValid = true
+        nameError = null
         emailError = null
         passwordError = null
-        serverError = null
-        roleError = null
-        rankError = null
+        confirmPasswordError = null
+        codeError = null
+
+        if (name.isBlank()) {
+            nameError = context.getString(R.string.err_required)
+            isValid = false
+        }
 
         if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             emailError = context.getString(R.string.err_email_invalid)
             isValid = false
         }
+
         if (password.isBlank() || password.length < 6) {
             passwordError = context.getString(R.string.err_password_short)
             isValid = false
         }
-        if (server.isBlank()) {
-            serverError = context.getString(R.string.err_required)
+
+        if (confirmPassword.isBlank() || password != confirmPassword) {
+            confirmPasswordError = context.getString(R.string.err_password_mismatch)
             isValid = false
         }
-        if (role.isBlank()) {
-            roleError = context.getString(R.string.err_required)
-            isValid = false
-        }
-        if (rank.isBlank()) {
-            rankError = context.getString(R.string.err_required)
-            isValid = false
-        }
+
         return isValid
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(48.dp),
-        verticalArrangement = Arrangement.Top
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = stringResource(R.string.register_title),
-            style = MaterialTheme.typography.headlineSmall
+            style = MaterialTheme.typography.headlineMedium
         )
-        Spacer(modifier = Modifier.height(12.dp))
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                nameError = null
+            },
+            label = { Text(stringResource(R.string.login)) },
+            isError = nameError != null,
+            supportingText = nameError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = email,
@@ -109,7 +135,9 @@ fun RegisterScreen(onRegister: (String, String, String, String, String) -> Unit)
             supportingText = emailError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         OutlinedTextField(
             value = password,
             onValueChange = {
@@ -123,48 +151,43 @@ fun RegisterScreen(onRegister: (String, String, String, String, String) -> Unit)
             supportingText = passwordError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         OutlinedTextField(
-            value = server,
+            value = confirmPassword,
             onValueChange = {
-                server = it
-                serverError = null
+                confirmPassword = it
+                confirmPasswordError = null
             },
-            label = { Text(stringResource(R.string.server)) },
-            isError = serverError != null,
-            supportingText = serverError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = role,
-            onValueChange = {
-                role = it
-                roleError = null
-            },
-            label = { Text(stringResource(R.string.role)) },
-            isError = roleError != null,
-            supportingText = roleError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = rank,
-            onValueChange = {
-                rank = it
-                rankError = null
-            },
-            label = { Text(stringResource(R.string.rank)) },
-            isError = rankError != null,
-            supportingText = rankError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+            label = { Text(stringResource(R.string.confirm_password)) },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            isError = confirmPasswordError != null,
+            supportingText = confirmPasswordError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = code,
+            onValueChange = {
+                code = it
+                codeError = null
+            },
+            label = { Text(stringResource(R.string.invite_code_optional)) },
+            isError = codeError != null,
+            supportingText = codeError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         Button(
             onClick = {
                 if (validate()) {
-                    onRegister(email.trim(), password.trim(), server.trim(), role.trim(), rank.trim())
+                    onRegister(name.trim(), email.trim(), password.trim(), code.trim())
                 }
             },
             modifier = Modifier.fillMaxWidth()

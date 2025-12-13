@@ -1,11 +1,9 @@
-
 package com.example.akioratinder.ui
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,44 +18,22 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.akioratinder.R
-import com.example.akioratinder.data.LikedProfile
-import com.example.akioratinder.services.ChatManager
-import com.example.akioratinder.services.GlobalSettingsManager
-import com.example.akioratinder.services.LikesManager
-import com.example.akioratinder.storage.ThemeLanguageStore
+import com.example.akioratinder.data.PlayerProfile
+import com.example.akioratinder.services.ApiService
+import com.example.akioratinder.services.AuthManager
 import com.example.akioratinder.ui.theme.AkioraTinderTheme
-import com.example.akioratinder.viewmodels.LikesViewModel
-import com.example.akioratinder.viewmodels.ThemeViewModel
-import java.text.SimpleDateFormat
-import java.util.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
 
 class LikesActivity : ComponentActivity() {
-    private lateinit var themeStore: ThemeLanguageStore
-
-    private val themeViewModel: ThemeViewModel by viewModels {
-        ThemeViewModelFactory(themeStore)
-    }
-
-    private val likesViewModel: LikesViewModel by viewModels()
-
     override fun onCreate(savedInstanceState: Bundle?) {
-        GlobalSettingsManager.initialize(this)
-        LikesManager.initialize(this)
-        ChatManager.initialize(this)
-        themeStore = ThemeLanguageStore(this)
-
         super.onCreate(savedInstanceState)
 
         setContent {
-            val darkTheme by themeViewModel.darkTheme.collectAsState()
-            GlobalSettingsManager.ObserveSettings()
-
-            AkioraTinderTheme(darkTheme = darkTheme) {
+            AkioraTinderTheme {
                 Scaffold(
                     topBar = {
                         LikesTopBar(onBackClick = { onBackPressed() })
@@ -68,7 +44,7 @@ class LikesActivity : ComponentActivity() {
                             .padding(padding)
                             .fillMaxSize()
                     ) {
-                        LikesScreen(likesViewModel = likesViewModel)
+                        LikesScreen()
                     }
                 }
             }
@@ -96,31 +72,71 @@ fun LikesTopBar(onBackClick: () -> Unit) {
 }
 
 @Composable
-fun LikesScreen(likesViewModel: LikesViewModel) {
+fun LikesScreen() {
     val context = LocalContext.current
-    val likedProfiles by likesViewModel.getLikedProfilesFlow(context).collectAsState()
-    val likesCount = likesViewModel.getLikesCount(context)
+    val coroutineScope = rememberCoroutineScope()
+    val apiService = remember { ApiService.getInstance(context) }
+    val authManager = remember { AuthManager.getInstance(context) }
+
+    var likedProfiles by remember { mutableStateOf<List<PlayerProfile>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    val currentUser by authManager.currentUser.collectAsState()
+
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            try {
+                val allProfiles = apiService.getForms()
+                // Находим профили, которые лайкнул текущий пользователь
+                likedProfiles = allProfiles.filter { profile ->
+                    profile.likedBy.contains(currentUser?.id)
+                }
+                isLoading = false
+            } catch (e: Exception) {
+                // Обработка ошибки
+                isLoading = false
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        LikesHeader(likesCount = likesCount)
+        LikesHeader(likesCount = likedProfiles.size)
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (likedProfiles.isEmpty()) {
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+        } else if (likedProfiles.isEmpty()) {
             EmptyLikesState()
         } else {
             LikesList(
                 likedProfiles = likedProfiles,
                 onRemoveLike = { profile ->
-                    likesViewModel.removeLike(context, profile.userProfile)
+                    coroutineScope.launch {
+                        try {
+                            apiService.dislikeForm(profile.id)
+                            // Обновляем список
+                            val allProfiles = apiService.getForms()
+                            likedProfiles = allProfiles.filter {
+                                it.likedBy.contains(currentUser?.id)
+                            }
+                        } catch (e: Exception) {
+                            // Обработка ошибки
+                        }
+                    }
                 },
                 onChatClick = { profile ->
+                    // TODO: Создать или получить чат с пользователем
+                    // Пока просто открываем ChatActivity с ID профиля
                     val intent = Intent(context, ChatActivity::class.java).apply {
-                        putExtra("target_user", profile.userProfile.summonerName)
+                        putExtra("target_user_name", profile.userData.name)
+                        // Нужно получить chatId из API
                     }
                     context.startActivity(intent)
                 }
@@ -157,7 +173,7 @@ fun LikesHeader(likesCount: Int) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.liked_profiles),
+            text = "Liked Profiles",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -200,7 +216,7 @@ fun EmptyLikesState() {
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = stringResource(R.string.no_likes_yet),
+                text = "No likes yet",
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -209,7 +225,7 @@ fun EmptyLikesState() {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = stringResource(R.string.no_likes_description),
+                text = "Swipe right on profiles you like",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -220,19 +236,19 @@ fun EmptyLikesState() {
 
 @Composable
 fun LikesList(
-    likedProfiles: List<LikedProfile>,
-    onRemoveLike: (LikedProfile) -> Unit,
-    onChatClick: (LikedProfile) -> Unit
+    likedProfiles: List<PlayerProfile>,
+    onRemoveLike: (PlayerProfile) -> Unit,
+    onChatClick: (PlayerProfile) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(likedProfiles, key = { it.userProfile.summonerName }) { likedProfile ->
+        items(likedProfiles, key = { it.id }) { profile ->
             AnimatedLikedProfileCard(
-                likedProfile = likedProfile,
-                onRemoveClick = { onRemoveLike(likedProfile) },
-                onChatClick = { onChatClick(likedProfile) }
+                profile = profile,
+                onRemoveClick = { onRemoveLike(profile) },
+                onChatClick = { onChatClick(profile) }
             )
         }
     }
@@ -240,7 +256,7 @@ fun LikesList(
 
 @Composable
 fun AnimatedLikedProfileCard(
-    likedProfile: LikedProfile,
+    profile: PlayerProfile,
     onRemoveClick: () -> Unit,
     onChatClick: () -> Unit
 ) {
@@ -268,26 +284,24 @@ fun AnimatedLikedProfileCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             ProfileCardHeader(
-                likedProfile = likedProfile,
+                profile = profile,
                 onRemoveClick = onRemoveClick,
                 onChatClick = onChatClick
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            ProfileCardContent(likedProfile = likedProfile)
+            ProfileCardContent(profile = profile)
         }
     }
 }
 
 @Composable
 fun ProfileCardHeader(
-    likedProfile: LikedProfile,
+    profile: PlayerProfile,
     onRemoveClick: () -> Unit,
     onChatClick: () -> Unit
 ) {
-    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy 'at' HH:mm", Locale.getDefault()) }
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -295,7 +309,7 @@ fun ProfileCardHeader(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = likedProfile.userProfile.summonerName,
+                text = profile.userData.name,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -304,7 +318,7 @@ fun ProfileCardHeader(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Liked on ${dateFormat.format(likedProfile.likedAt)}",
+                text = profile.account.server,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -331,40 +345,34 @@ fun ProfileCardHeader(
 }
 
 @Composable
-fun ProfileCardContent(likedProfile: LikedProfile) {
-    val fullRank = if (likedProfile.userProfile.rankTier in listOf("Master", "Grandmaster", "Challenger")) {
-        likedProfile.userProfile.rankTier
-    } else {
-        "${likedProfile.userProfile.rankTier} ${likedProfile.userProfile.rankDivision}"
-    }
-
+fun ProfileCardContent(profile: PlayerProfile) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         ProfileInfoItem(
             label = "Server",
-            value = likedProfile.userProfile.server,
+            value = profile.account.server,
             icon = Icons.Default.Public
         )
 
         ProfileInfoItem(
-            label = "Role",
-            value = likedProfile.userProfile.role,
+            label = "Roles",
+            value = profile.gameData.roles.take(2).joinToString(", ") { it.name },
             icon = Icons.Default.SportsEsports
         )
 
         ProfileInfoItem(
-            label = "Rank",
-            value = fullRank,
-            icon = Icons.Default.Leaderboard
+            label = "Looking for",
+            value = profile.gameData.rolesLookingFor.take(2).joinToString(", ") { it.name },
+            icon = Icons.Default.Group
         )
     }
 
-    if (likedProfile.userProfile.bio.isNotBlank()) {
+    if (profile.description.isNotBlank()) {
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = likedProfile.userProfile.bio,
+            text = profile.description,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
             maxLines = 2
@@ -377,6 +385,10 @@ fun ProfileInfoItem(label: String, value: String, icon: ImageVector) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = value, style = MaterialTheme.typography.bodySmall)
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center
+        )
     }
 }

@@ -25,17 +25,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.akioratinder.R
+import com.example.akioratinder.data.PlayerProfile
 import com.example.akioratinder.data.UserProfile
-import com.example.akioratinder.services.LikesManager
-import com.example.akioratinder.services.ProfilesManager
-import com.example.akioratinder.services.SwipeManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 @Composable
 fun SwipeableCardStack(
-    profiles: List<UserProfile>,
+    profiles: List<PlayerProfile>,
     onSwipeLeft: (UserProfile) -> Unit = {},
     onSwipeRight: (UserProfile) -> Unit = {}
 ) {
