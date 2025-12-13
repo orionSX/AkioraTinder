@@ -117,10 +117,7 @@ fun ProfileListScreen() {
                 onSwipeLeft = { profile ->
                     coroutineScope.launch {
                         try {
-                            val currentUserId = authManager.currentUser.value?.id
-                            if (currentUserId != null) {
-                                apiService.dislikeForm(profile.id, currentUserId)
-                            }
+                            apiService.dislikeForm(profile.id)  // ID пользователя теперь берется из UserStore
                         } catch (e: Exception) {
                             // Обработка ошибки
                         }
@@ -129,10 +126,7 @@ fun ProfileListScreen() {
                 onSwipeRight = { profile ->
                     coroutineScope.launch {
                         try {
-                            val currentUserId = authManager.currentUser.value?.id
-                            if (currentUserId != null) {
-                                apiService.likeForm(profile.id, currentUserId)
-                            }
+                            apiService.likeForm(profile.id)  // ID пользователя теперь берется из UserStore
                         } catch (e: Exception) {
                             // Обработка ошибки
                         }
