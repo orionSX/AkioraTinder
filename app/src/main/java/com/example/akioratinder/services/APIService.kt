@@ -19,6 +19,7 @@ class ApiService private constructor(context: Context) {
         get() = "${BackendConfig.backendUrl}/"
 
     private var authToken: String? = null
+    private val userStore = UserStore(context)
 
     init {
         client = OkHttpClient.Builder()
@@ -84,7 +85,9 @@ class ApiService private constructor(context: Context) {
                 
                 // Получаем данные пользователя
                 val user = if (jsonResponse.has("id")) {
-                    parseUserProfile(jsonResponse)
+                    val parsedUser = parseUserProfile(jsonResponse)
+                    userStore.saveUserData(parsedUser)  // Сохраняем данные пользователя
+                    parsedUser
                 } else {
                     null
                 }
@@ -131,7 +134,9 @@ class ApiService private constructor(context: Context) {
                 
                 // Получаем данные пользователя
                 val user = if (jsonResponse.has("id")) {
-                    parseUserProfile(jsonResponse)
+                    val parsedUser = parseUserProfile(jsonResponse)
+                    userStore.saveUserData(parsedUser)  // Сохраняем данные пользователя
+                    parsedUser
                 } else {
                     null
                 }
@@ -151,11 +156,9 @@ class ApiService private constructor(context: Context) {
     }
 
     // Пользователи
-    suspend fun getCurrentUser(): UserProfile = withContext(Dispatchers.IO) {
-        // Если у нас есть токен, мы можем получить информацию о пользователе
-        // В данной API спецификации нет /users/me, поэтому временно возвращаем пустой профиль
-        // или используем другой подход - например, хранить ID пользователя локально
-        return@withContext UserProfile() // временная заглушка до реализации получения ID пользователя
+    suspend fun getCurrentUser(): UserProfile? = withContext(Dispatchers.IO) {
+        // Возвращаем данные текущего пользователя из UserStore
+        return@withContext userStore.getUserData()
     }
     
     suspend fun getUserById(userId: String): UserProfile = withContext(Dispatchers.IO) {
@@ -389,9 +392,10 @@ class ApiService private constructor(context: Context) {
     }
 
     // Лайки/Дизлайки
-    suspend fun likeForm(formId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun likeForm(formId: String, userId: String? = null): Boolean = withContext(Dispatchers.IO) {
+        val actualUserId = userId ?: userStore.getUserId() ?: return@withContext false
         val request = Request.Builder()
-            .url("${baseUrl}forms/$formId/like?user_id=$userId")
+            .url("${baseUrl}forms/$formId/like?user_id=$actualUserId")
             .post(RequestBody.create(null, ""))
             .build()
 
@@ -404,9 +408,10 @@ class ApiService private constructor(context: Context) {
         }
     }
 
-    suspend fun dislikeForm(formId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun dislikeForm(formId: String, userId: String? = null): Boolean = withContext(Dispatchers.IO) {
+        val actualUserId = userId ?: userStore.getUserId() ?: return@withContext false
         val request = Request.Builder()
-            .url("${baseUrl}forms/$formId/dislike?user_id=$userId")
+            .url("${baseUrl}forms/$formId/dislike?user_id=$actualUserId")
             .post(RequestBody.create(null, ""))
             .build()
 
@@ -419,9 +424,10 @@ class ApiService private constructor(context: Context) {
         }
     }
     
-    suspend fun activateForm(formId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun activateForm(formId: String, userId: String? = null): Boolean = withContext(Dispatchers.IO) {
+        val actualUserId = userId ?: userStore.getUserId() ?: return@withContext false
         val request = Request.Builder()
-            .url("${baseUrl}forms/activate/$formId?user_id=$userId")
+            .url("${baseUrl}forms/activate/$formId?user_id=$actualUserId")
             .post(RequestBody.create(null, ""))
             .build()
 
@@ -434,9 +440,10 @@ class ApiService private constructor(context: Context) {
         }
     }
     
-    suspend fun deleteFormById(formId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun deleteFormById(formId: String, userId: String? = null): Boolean = withContext(Dispatchers.IO) {
+        val actualUserId = userId ?: userStore.getUserId() ?: return@withContext false
         val request = Request.Builder()
-            .url("${baseUrl}forms/delete/$formId?user_id=$userId")
+            .url("${baseUrl}forms/delete/$formId?user_id=$actualUserId")
             .post(RequestBody.create(null, ""))
             .build()
 
@@ -451,8 +458,9 @@ class ApiService private constructor(context: Context) {
 
     // Чаты
     suspend fun getChats(): List<Chat> = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext emptyList()
         val request = Request.Builder()
-            .url("${baseUrl}chats")
+            .url("${baseUrl}chats?user_id=$userId")
             .get()
             .build()
 
@@ -471,9 +479,88 @@ class ApiService private constructor(context: Context) {
         }
     }
 
-    suspend fun getMessages(chatId: String): List<ChatMessage> = withContext(Dispatchers.IO) {
+    suspend fun getChatById(chatId: String): Chat? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url("${baseUrl}chats/$chatId/messages")
+            .url("${baseUrl}chats/$chatId")
+            .get()
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val responseBody = response.body?.string() ?: "{}"
+                val json = JSONObject(responseBody)
+                parseChat(json)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("ApiService", "Get chat by id error: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun getChatBetweenUsers(user1Id: String, user2Id: String): Chat? = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("${baseUrl}chats/between/$user1Id/$user2Id")
+            .get()
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val responseBody = response.body?.string() ?: "{}"
+                val json = JSONObject(responseBody)
+                parseChat(json)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("ApiService", "Get chat between users error: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun ignoreChat(chatId: String): Boolean = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext false
+        val request = Request.Builder()
+            .url("${baseUrl}chats/$chatId/ignore?user_id=$userId")
+            .post(RequestBody.create(null, ""))
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiService", "Ignore chat error: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun unignoreChat(chatId: String): Boolean = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext false
+        val request = Request.Builder()
+            .url("${baseUrl}chats/$chatId/unignore?user_id=$userId")
+            .post(RequestBody.create(null, ""))
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiService", "Unignore chat error: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun getMessages(chatId: String, skip: Int = 0, limit: Int = 50, before: String? = null): List<ChatMessage> = withContext(Dispatchers.IO) {
+        var url = "${baseUrl}chats/$chatId/messages?skip=$skip&limit=$limit"
+        if (before != null) {
+            url += "&before=$before"
+        }
+        
+        val request = Request.Builder()
+            .url(url)
             .get()
             .build()
 
@@ -491,11 +578,43 @@ class ApiService private constructor(context: Context) {
             emptyList()
         }
     }
+
+    suspend fun markMessageAsRead(messageId: String): Boolean = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext false
+        val request = Request.Builder()
+            .url("${baseUrl}chats/messages/$messageId/read?user_id=$userId")
+            .put(RequestBody.create(null, ""))
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiService", "Mark message as read error: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun deleteMessage(messageId: String): Boolean = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("${baseUrl}chats/messages/$messageId")
+            .delete()
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiService", "Delete message error: ${e.message}")
+            false
+        }
+    }
     
     // Рекомендации
-    suspend fun getRecommendedForms(userId: String): List<PlayerProfile> = withContext(Dispatchers.IO) {
+    suspend fun getRecommendedForms(userId: String? = null): List<PlayerProfile> = withContext(Dispatchers.IO) {
+        val actualUserId = userId ?: userStore.getUserId() ?: return@withContext emptyList()
         val request = Request.Builder()
-            .url("${baseUrl}forms/recommendations/$userId")
+            .url("${baseUrl}forms/recommendations/$actualUserId")
             .get()
             .build()
 
@@ -520,8 +639,10 @@ class ApiService private constructor(context: Context) {
     }
 
     suspend fun sendMessage(chatId: String, text: String): ChatMessage? = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext null
         val json = JSONObject().apply {
             put("text", text)
+            put("creator_id", userId)  // Добавляем ID текущего пользователя как создателя сообщения
         }
 
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
@@ -546,9 +667,11 @@ class ApiService private constructor(context: Context) {
         }
     }
 
-    suspend fun createChat(userId: String): Chat? = withContext(Dispatchers.IO) {
+    suspend fun createChat(user2Id: String): Chat? = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext null
         val json = JSONObject().apply {
-            put("user_2", userId)
+            put("user_1", userId)
+            put("user_2", user2Id)
         }
 
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())

@@ -114,7 +114,8 @@ class AuthManager private constructor(context: Context) {
     }
 
     suspend fun updateProfile(update: UpdateProfileRequest): UserProfile {
-        val user = apiService.updateUser(update)
+        val userId = _currentUser.value?.id ?: throw Exception("User not authenticated")
+        val user = apiService.updateUser(userId, update)
         _currentUser.value = user
         saveUserData(user)
         return user
