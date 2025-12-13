@@ -120,11 +120,13 @@ fun LikesScreen() {
                 onRemoveLike = { profile ->
                     coroutineScope.launch {
                         try {
-                            apiService.dislikeForm(profile.id)
-                            // Обновляем список
-                            val allProfiles = apiService.getForms()
-                            likedProfiles = allProfiles.filter {
-                                it.likedBy.contains(currentUser?.id)
+                            if (currentUser?.id != null) {
+                                apiService.dislikeForm(profile.id, currentUser.id)
+                                // Обновляем список
+                                val allProfiles = apiService.getForms()
+                                likedProfiles = allProfiles.filter {
+                                    it.likedBy.contains(currentUser?.id)
+                                }
                             }
                         } catch (e: Exception) {
                             // Обработка ошибки

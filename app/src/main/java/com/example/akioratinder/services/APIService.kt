@@ -2,6 +2,7 @@ package com.example.akioratinder.services
 
 import android.content.Context
 import android.util.Log
+import com.example.akioratinder.config.BackendConfig
 import com.example.akioratinder.data.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,7 +15,8 @@ import java.util.concurrent.TimeUnit
 
 class ApiService private constructor(context: Context) {
     private val client: OkHttpClient
-    private val baseUrl = "https://fastapi-python-boilerplate-aoiaak241-alexs-projects-c2ff89e8.vercel.app/"
+    private val baseUrl: String
+        get() = "${BackendConfig.backendUrl}/"
 
     private var authToken: String? = null
 
@@ -67,7 +69,7 @@ class ApiService private constructor(context: Context) {
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
-            .url("${baseUrl}auth/login")
+            .url("${baseUrl}users/login")
             .post(requestBody)
             .build()
 
@@ -76,16 +78,22 @@ class ApiService private constructor(context: Context) {
             if (response.isSuccessful) {
                 val responseBody = response.body?.string() ?: "{}"
                 val jsonResponse = JSONObject(responseBody)
-                val success = jsonResponse.optBoolean("success", false)
-                val token = jsonResponse.optString("token", "")
-                val userJson = jsonResponse.optJSONObject("user")
-                val user = if (userJson != null) parseUserProfile(userJson) else null
+                
+                // В спецификации не указан точный формат ответа, поэтому используем стандартный подход
+                val token = jsonResponse.optString("access_token", "")  // или "token" в зависимости от API
+                
+                // Получаем данные пользователя
+                val user = if (jsonResponse.has("id")) {
+                    parseUserProfile(jsonResponse)
+                } else {
+                    null
+                }
 
-                if (success && token.isNotEmpty()) {
+                if (token.isNotEmpty()) {
                     authToken = token
                 }
 
-                AuthResponse(success, token, user)
+                AuthResponse(true, token, user)
             } else {
                 AuthResponse(false, "", null)
             }
@@ -108,7 +116,7 @@ class ApiService private constructor(context: Context) {
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
-            .url("${baseUrl}auth/register")
+            .url("${baseUrl}users/register")
             .post(requestBody)
             .build()
 
@@ -117,16 +125,22 @@ class ApiService private constructor(context: Context) {
             if (response.isSuccessful) {
                 val responseBody = response.body?.string() ?: "{}"
                 val jsonResponse = JSONObject(responseBody)
-                val success = jsonResponse.optBoolean("success", false)
-                val token = jsonResponse.optString("token", "")
-                val userJson = jsonResponse.optJSONObject("user")
-                val user = if (userJson != null) parseUserProfile(userJson) else null
+                
+                // В спецификации не указан точный формат ответа, поэтому используем стандартный подход
+                val token = jsonResponse.optString("access_token", "")  // или "token" в зависимости от API
+                
+                // Получаем данные пользователя
+                val user = if (jsonResponse.has("id")) {
+                    parseUserProfile(jsonResponse)
+                } else {
+                    null
+                }
 
-                if (success && token.isNotEmpty()) {
+                if (token.isNotEmpty()) {
                     authToken = token
                 }
 
-                AuthResponse(success, token, user)
+                AuthResponse(true, token, user)
             } else {
                 AuthResponse(false, "", null)
             }
@@ -138,8 +152,15 @@ class ApiService private constructor(context: Context) {
 
     // Пользователи
     suspend fun getCurrentUser(): UserProfile = withContext(Dispatchers.IO) {
+        // Если у нас есть токен, мы можем получить информацию о пользователе
+        // В данной API спецификации нет /users/me, поэтому временно возвращаем пустой профиль
+        // или используем другой подход - например, хранить ID пользователя локально
+        return@withContext UserProfile() // временная заглушка до реализации получения ID пользователя
+    }
+    
+    suspend fun getUserById(userId: String): UserProfile = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url("${baseUrl}users/me")
+            .url("${baseUrl}users/${userId}")
             .get()
             .build()
 
@@ -153,12 +174,38 @@ class ApiService private constructor(context: Context) {
                 UserProfile()
             }
         } catch (e: Exception) {
-            Log.e("ApiService", "Get current user error: ${e.message}")
+            Log.e("ApiService", "Get user by id error: ${e.message}")
             UserProfile()
         }
     }
+    
+    suspend fun getAllUsers(): List<UserProfile> = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("${baseUrl}users/")
+            .get()
+            .build()
 
-    suspend fun updateUser(update: UpdateProfileRequest): UserProfile = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val responseBody = response.body?.string() ?: "[]"
+                val jsonArray = JSONArray(responseBody)
+                val users = mutableListOf<UserProfile>()
+                for (i in 0 until jsonArray.length()) {
+                    val userJson = jsonArray.getJSONObject(i)
+                    users.add(parseUserProfile(userJson))
+                }
+                users
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("ApiService", "Get all users error: ${e.message}")
+            emptyList()
+        }
+    }
+    
+    suspend fun updateUser(userId: String, update: UpdateProfileRequest): UserProfile = withContext(Dispatchers.IO) {
         val json = JSONObject().apply {
             if (update.email != null) put("email", update.email)
             if (update.password != null) put("password", update.password)
@@ -171,8 +218,8 @@ class ApiService private constructor(context: Context) {
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
-            .url("${baseUrl}users/me")
-            .put(requestBody)
+            .url("${baseUrl}users/${userId}")
+            .patch(requestBody)  // Изменено на PATCH, как указано в OpenAPI спецификации
             .build()
 
         return@withContext try {
@@ -342,9 +389,9 @@ class ApiService private constructor(context: Context) {
     }
 
     // Лайки/Дизлайки
-    suspend fun likeForm(formId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun likeForm(formId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url("${baseUrl}forms/$formId/like")
+            .url("${baseUrl}forms/$formId/like?user_id=$userId")
             .post(RequestBody.create(null, ""))
             .build()
 
@@ -357,9 +404,9 @@ class ApiService private constructor(context: Context) {
         }
     }
 
-    suspend fun dislikeForm(formId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun dislikeForm(formId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url("${baseUrl}forms/$formId/dislike")
+            .url("${baseUrl}forms/$formId/dislike?user_id=$userId")
             .post(RequestBody.create(null, ""))
             .build()
 
@@ -368,6 +415,36 @@ class ApiService private constructor(context: Context) {
             response.isSuccessful
         } catch (e: Exception) {
             Log.e("ApiService", "Dislike form error: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun activateForm(formId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("${baseUrl}forms/activate/$formId?user_id=$userId")
+            .post(RequestBody.create(null, ""))
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiService", "Activate form error: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun deleteFormById(formId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("${baseUrl}forms/delete/$formId?user_id=$userId")
+            .post(RequestBody.create(null, ""))
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ApiService", "Delete form by id error: ${e.message}")
             false
         }
     }
@@ -411,6 +488,33 @@ class ApiService private constructor(context: Context) {
             }
         } catch (e: Exception) {
             Log.e("ApiService", "Get messages error: ${e.message}")
+            emptyList()
+        }
+    }
+    
+    // Рекомендации
+    suspend fun getRecommendedForms(userId: String): List<PlayerProfile> = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("${baseUrl}forms/recommendations/$userId")
+            .get()
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val responseBody = response.body?.string() ?: "[]"
+                val jsonArray = JSONArray(responseBody)
+                val forms = mutableListOf<PlayerProfile>()
+                for (i in 0 until jsonArray.length()) {
+                    val formJson = jsonArray.getJSONObject(i)
+                    forms.add(parsePlayerProfile(formJson))
+                }
+                forms
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("ApiService", "Get recommended forms error: ${e.message}")
             emptyList()
         }
     }

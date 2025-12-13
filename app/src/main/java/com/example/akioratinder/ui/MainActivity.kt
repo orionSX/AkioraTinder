@@ -117,7 +117,10 @@ fun ProfileListScreen() {
                 onSwipeLeft = { profile ->
                     coroutineScope.launch {
                         try {
-                            apiService.dislikeForm(profile.id)
+                            val currentUserId = authManager.currentUser.value?.id
+                            if (currentUserId != null) {
+                                apiService.dislikeForm(profile.id, currentUserId)
+                            }
                         } catch (e: Exception) {
                             // Обработка ошибки
                         }
@@ -126,7 +129,10 @@ fun ProfileListScreen() {
                 onSwipeRight = { profile ->
                     coroutineScope.launch {
                         try {
-                            apiService.likeForm(profile.id)
+                            val currentUserId = authManager.currentUser.value?.id
+                            if (currentUserId != null) {
+                                apiService.likeForm(profile.id, currentUserId)
+                            }
                         } catch (e: Exception) {
                             // Обработка ошибки
                         }
