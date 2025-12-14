@@ -1,4 +1,3 @@
-// ChatListActivity.kt
 package com.example.mobile_final.ui
 
 import android.content.Intent
@@ -11,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -18,29 +18,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
-import com.example.mobile_final.ui.theme.Mobile_finalThemeWithPref
-import com.example.mobile_final.utils.PreferencesManager
+import com.example.mobile_final.ui.theme.Mobile_finalTheme
 import com.example.mobile_final.viewmodels.ChatViewModel
 
 class ChatsListActivity : ComponentActivity() {
     private lateinit var viewModel: ChatViewModel
-    private lateinit var preferencesManager: PreferencesManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        preferencesManager = PreferencesManager(this)
 
         viewModel = ViewModelProvider.AndroidViewModelFactory
             .getInstance(application)
             .create(ChatViewModel::class.java)
 
+        // Инициализируем ViewModel
+        viewModel.initialize(applicationContext)
+
         setContent {
-            Mobile_finalThemeWithPref(
-                themeMode = preferencesManager.getThemeMode()
-            ) {
+            Mobile_finalTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.background
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     ChatsListScreen(viewModel = viewModel)
                 }
@@ -53,6 +50,11 @@ class ChatsListActivity : ComponentActivity() {
         viewModel.connectWebSocket()
         viewModel.loadChats()
     }
+
+    override fun onPause() {
+        super.onPause()
+        viewModel.disconnectWebSocket()
+    }
 }
 
 @Composable
@@ -62,12 +64,23 @@ fun ChatsListScreen(viewModel: ChatViewModel) {
     val currentUserId by viewModel.currentUserId.collectAsState()
     val context = LocalContext.current
 
+    LaunchedEffect(Unit) {
+        viewModel.loadChats()
+    }
+
     if (isLoading && chats.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator()
+        }
+    } else if (chats.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.material3.Text("Нет чатов")
         }
     } else {
         LazyColumn(

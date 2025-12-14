@@ -9,6 +9,7 @@ import com.example.mobile_final.viewmodels.RecommendationViewModel.UiState.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 class RecommendationViewModel(private val apiService: ApiService) : ViewModel() {
 
@@ -58,8 +59,8 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
                     val jsonResponse = JSONObject(result)
                     
                     // Check if the response contains chat information
-                    if (jsonResponse.has("_id") && jsonResponse.has("user1")) {
-                        // This is a chat object, extract chat ID
+                    if (jsonResponse.has("_id") ) {
+
                         val chatId = jsonResponse.optString("_id", "")
                         if (chatId.isNotEmpty()) {
                             _uiState.value = NavigateToChat(chatId)
@@ -67,30 +68,15 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
                         } else {
                             _error.value = "Ошибка получения информации о чате"
                         }
-                    } else {
-                        // Check for other possible chat ID formats
-                        val chatId = jsonResponse.optString("chat_id",
-                            jsonResponse.optString("chatId",
-                                jsonResponse.optString("id", "")))
-                        
-                        if (chatId.isNotEmpty()) {
-                            _uiState.value = NavigateToChat(chatId)
-                            removeProfile(formId) // Remove the profile after navigating to chat
-                        } else {
-                            // No chat was created, check if there's a test to take
-                            val profile = _profiles.value.find { it.id == formId }
-                            if (profile != null && profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
-                                _uiState.value = NavigateToTest(formId = formId)
-                            } else {
-                                // No chat and no test, just remove the profile
-                                removeProfile(formId)
-                            }
-                        }
+                    }
+                    else{
+                        _uiState.value=NavigateToTest(formId)
+                        removeProfile(formId)
                     }
                 } catch (jsonException: Exception) {
                     // If JSON parsing fails, check if result contains chat-like information
                     if (result.contains("chat", ignoreCase = true) || 
-                        result.contains("_id") || result.contains("user1")) {
+                        result.contains("_id") || result.contains("user_1")) {
                         // Try to extract chat ID from text
                         val regex = "(_id|id|chat_id|chatId)[=:\"\\s]+([\\w-]+)".toRegex(RegexOption.IGNORE_CASE)
                         val matchResult = regex.find(result)
@@ -148,8 +134,7 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
             try {
                 val response = apiService.passTest(formId, answers)
 
-                if (response.contains("success", ignoreCase = true) ||
-                    response.contains("успешно", ignoreCase = true)) {
+                if (response) {
                     // Тест пройден успешно, удаляем анкету
                     removeProfile(formId)
                     _uiState.value = ShowTestResult(
@@ -160,7 +145,7 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
                     // Ошибка при прохождении теста
                     _uiState.value = ShowTestResult(
                         success = false,
-                        message = response
+                        message = "failed test"
                     )
                 }
             } catch (e: Exception) {

@@ -1,68 +1,106 @@
-// ChatViewModel.kt
 package com.example.mobile_final.viewmodels
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.mobile_final.services.ApiService
+import com.example.mobile_final.dto.Chat
+import com.example.mobile_final.dto.ChatMessage
+import com.example.mobile_final.services.AuthManager
 import com.example.mobile_final.services.ChatManager
-import com.example.mobile_final.storage.UserStore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import android.content.Context
 
-class ChatViewModel(application: Application) : AndroidViewModel(application) {
-    private val context = application.applicationContext
-    private val userStore = UserStore(context)
-    private val apiService = ApiService.getInstance(context)
+class ChatViewModel : ViewModel() {
+    private lateinit var chatManager: ChatManager
+    private lateinit var authManager: AuthManager
+    private var isInitialized = false
 
-    private val chatManager by lazy {
-        ChatManager(context, apiService, userStore)
-    }
+    private val _activeChatId = MutableStateFlow<String?>(null)
+    val activeChatId: StateFlow<String?> = _activeChatId.asStateFlow()
 
-    // Публичные потоки данных
-    val activeChat: StateFlow<com.example.mobile_final.dto.Chat?> = chatManager.activeChat
-    val messages: StateFlow<List<com.example.mobile_final.dto.ChatMessage>> = chatManager.messages
-    val chats: StateFlow<List<com.example.mobile_final.dto.Chat>> = chatManager.chats
-    val isLoading: StateFlow<Boolean> = chatManager.isLoading
-    val error: StateFlow<String?> = chatManager.error
+    val chats = MutableStateFlow<List<Chat>>(emptyList())
+    val messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val isLoading = MutableStateFlow(false)
+    val error = MutableStateFlow<String?>(null)
+    val currentUserId = MutableStateFlow<String?>(null)
 
-    // Дополнительные состояния
-    private val _currentUserId = MutableStateFlow<String?>(null)
-    val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
+    fun initialize(context: Context) {
+        if (!isInitialized) {
+            authManager = AuthManager.getInstance(context)
+            chatManager = ChatManager(context,
+                com.example.mobile_final.services.ApiService.getInstance(context),
+                com.example.mobile_final.storage.UserStore(context)
+            )
+            isInitialized = true
 
-    init {
-        // Инициализируем текущего пользователя
-        _currentUserId.value = userStore.getUserId()
+            // Load user ID
+            currentUserId.value = authManager.currentUser?.value?.id
 
-        // Подписываемся на обновления
-        viewModelScope.launch {
-            userStore.userDataFlow.collect { user ->
-                _currentUserId.value = user?.id
+            // Observe flows from ChatManager
+            viewModelScope.launch {
+                chatManager.chats.collect { chatList ->
+                    chats.value = chatList
+                }
+            }
+
+            viewModelScope.launch {
+                chatManager.messages.collect { messageList ->
+                    messages.value = messageList
+                }
+            }
+
+            viewModelScope.launch {
+                chatManager.activeChat.collect {
+                    // Keep active chat synced
+                }
             }
         }
     }
 
     fun setActiveChat(chatId: String) {
+        _activeChatId.value = chatId
         viewModelScope.launch {
-            chatManager.loadMessages(chatId)
+            isLoading.value = true
+            try {
+                chatManager.loadMessages(chatId)
+            } catch (e: Exception) {
+                error.value = "Ошибка загрузки сообщений: ${e.message}"
+            } finally {
+                isLoading.value = false
+            }
         }
     }
 
     fun loadChats() {
         viewModelScope.launch {
-            chatManager.loadChats()
+            isLoading.value = true
+            try {
+                chatManager.loadChats()
+            } catch (e: Exception) {
+                error.value = "Ошибка загрузки чатов: ${e.message}"
+            } finally {
+                isLoading.value = false
+            }
         }
     }
 
     fun sendMessage(text: String) {
         viewModelScope.launch {
-            chatManager.sendMessage(text)
+            isLoading.value = true
+            try {
+                chatManager.sendMessage(text)
+            } catch (e: Exception) {
+                error.value = "Ошибка отправки сообщения: ${e.message}"
+            } finally {
+                isLoading.value = false
+            }
         }
     }
 
     fun toggleIgnoreChat(chatId: String) {
         viewModelScope.launch {
-            if (isChatIgnored(chatId)) {
+            val isIgnored = isChatIgnored(chatId)
+            if (isIgnored) {
                 chatManager.unignoreChat(chatId)
             } else {
                 chatManager.ignoreChat(chatId)
@@ -78,26 +116,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         return chatManager.getUnreadCount(chatId)
     }
 
-    fun getTotalUnreadCount(): Int {
-        return chatManager.getTotalUnreadCount()
-    }
-
-    fun startPolling() {
+    fun connectWebSocket() {
+        // Start polling for new messages
         chatManager.startPolling()
     }
 
-    fun stopPolling() {
+    fun disconnectWebSocket() {
+        // Stop polling
         chatManager.stopPolling()
     }
 
-    fun clearError() {
-        // Нужно добавить метод в ChatManager для очистки ошибок
-        // пока просто устанавливаем null
-        // chatManager.clearError()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        chatManager.stopPolling()
+    fun clearActiveChat() {
+        _activeChatId.value = null
+        chatManager.clearActiveChat()
     }
 }

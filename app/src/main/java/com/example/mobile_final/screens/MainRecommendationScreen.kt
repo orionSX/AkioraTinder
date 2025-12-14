@@ -113,7 +113,7 @@ fun MainRecommendationScreen(
                 TestScreen(
                     questions = profile.formTest.questions,
                     onSubmit = { answers ->
-                        // Отправляем тест (асинхронно)
+
                         viewModel.passTest(formId = formId, answers = answers)
                     },
                     onBack = {

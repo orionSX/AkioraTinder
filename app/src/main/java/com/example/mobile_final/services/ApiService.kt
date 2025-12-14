@@ -599,10 +599,8 @@ class ApiService private constructor(context: Context) {
     }
 
     suspend fun getMessages(chatId: String, skip: Int = 0, limit: Int = 50, before: String? = null): List<ChatMessage> = withContext(Dispatchers.IO) {
-        var url = "${baseUrl}chats/$chatId/messages?skip=$skip&limit=$limit"
-        if (before != null) {
-            url += "&before=$before"
-        }
+        var url = "${baseUrl}chats/$chatId/messages"
+
 
         val request = Request.Builder()
             .url(url)
@@ -656,8 +654,8 @@ class ApiService private constructor(context: Context) {
     }
 
     // Тестирование
-    suspend fun passTest(formId: String, answers: List<Answer>): String = withContext(Dispatchers.IO) {
-        val userId = userStore.getUserId() ?: return@withContext "{}"
+    suspend fun passTest(formId: String, answers: List<Answer>): Boolean = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext false
         val json = JSONObject().apply {
             put("user_id", userId)
             put("answers", JSONArray(answers.map { it.toString().lowercase() }))
@@ -666,20 +664,20 @@ class ApiService private constructor(context: Context) {
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
-            .url("${baseUrl}forms/$formId/pass_test")
+            .url("${baseUrl}forms/test/pass/$formId")
             .post(requestBody)
             .build()
 
         return@withContext try {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
-                response.body?.string() ?: "{}"
+                true
             } else {
-                "{}"
+               false
             }
         } catch (e: Exception) {
             Log.e("ApiService", "Pass test error: ${e.message}")
-            "{}"
+            false
         }
     }
 
@@ -715,6 +713,7 @@ class ApiService private constructor(context: Context) {
         val userId = userStore.getUserId() ?: return@withContext null
         val json = JSONObject().apply {
             put("text", text)
+            put("chat_id",chatId)
             put("creator_id", userId)  // Добавляем ID текущего пользователя как создателя сообщения
         }
 

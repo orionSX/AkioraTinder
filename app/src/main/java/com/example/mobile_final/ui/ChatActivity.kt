@@ -56,6 +56,9 @@ class ChatActivity : ComponentActivity() {
             .getInstance(application)
             .create(ChatViewModel::class.java)
 
+        // Инициализируем ViewModel
+        viewModel.initialize(applicationContext)
+
         val chatId = intent.getStringExtra("chatId")
         chatId?.let {
             viewModel.setActiveChat(it)
@@ -75,18 +78,18 @@ class ChatActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.connectWebSocket()
+
     }
 
     override fun onPause() {
         super.onPause()
-        viewModel.disconnectWebSocket()
+
     }
 }
 
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
-    val activeChat by viewModel.activeChat.collectAsState()
+    val activeChat by viewModel.activeChatId.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -94,7 +97,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
 
     val listState = rememberLazyListState()
     val context = LocalContext.current
-    val focusManager = LocalFocusManager.current
+
 
     // Авто-скролл к последнему сообщению
     LaunchedEffect(messages.size) {
@@ -107,11 +110,11 @@ fun ChatScreen(viewModel: ChatViewModel) {
     Scaffold(
         topBar = {
             ChatTopBar(
-                chat = activeChat,
+                chat = activeChat!!,
                 isLoading = isLoading,
                 onBackClick = { (context as ChatActivity).finish() },
-                onIgnoreClick = { activeChat?.let { viewModel.toggleIgnoreChat(it.id) } },
-                isChatIgnored = activeChat?.let { viewModel.isChatIgnored(it.id) } ?: false
+                onIgnoreClick = { activeChat?.let { viewModel.toggleIgnoreChat(it) } },
+                isChatIgnored = activeChat?.let { viewModel.isChatIgnored(it) } ?: false
             )
         },
         bottomBar = {
@@ -190,7 +193,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatTopBar(
-    chat: com.example.mobile_final.dto.Chat?,
+    chat: String,
     isLoading: Boolean,
     onBackClick: () -> Unit,
     onIgnoreClick: () -> Unit,
