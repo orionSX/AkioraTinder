@@ -39,10 +39,38 @@ private val DarkColors = darkColorScheme(
 @Composable
 fun Mobile_finalTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+
+        darkTheme -> DarkColors
+        else -> LightColors
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        content = content
+    )
+}
+
+@Composable
+fun Mobile_finalThemeWithPref(
+    themeMode: String = "system", // Options: system, light, dark
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    val darkTheme = when (themeMode) {
+        "light" -> false
+        "dark" -> true
+        else -> isSystemInDarkTheme() // "system" case
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

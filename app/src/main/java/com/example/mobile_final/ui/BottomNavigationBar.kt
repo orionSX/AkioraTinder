@@ -1,6 +1,8 @@
 // NavBar.kt (новый файл в ui папке)
 package com.example.mobile_final.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -10,16 +12,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.mobile_final.R
 
-sealed class Screen(val route: String, val titleResId: Int, val iconResId: Int) {
-    object Home : Screen("home", R.string.tab_profile, R.drawable.logof)
-    object Chats : Screen("chats", R.string.chats, R.drawable.logof)
-    object Profile : Screen("profile", R.string.profile, R.drawable.logof)
+sealed class Screen(val route: String, val titleResId: Int, val icon: @Composable () -> Unit) {
+    object Home : Screen("home", R.string.tab_profile, { Icon(Icons.Default.Person, contentDescription = null) })
+    object Chats : Screen("chats", R.string.chats, { Icon(Icons.Default.Chat, contentDescription = null) })
+    object Profile : Screen("profile", R.string.profile, { Icon(Icons.Default.AccountCircle, contentDescription = null) })
 }
 
 @Composable
@@ -42,12 +43,7 @@ fun BottomNavigationBar(
     ) {
         items.forEach { screen ->
             NavigationBarItem(
-                icon = {
-                    Icon(
-                        painter = painterResource(id = screen.iconResId),
-                        contentDescription = stringResource(id = screen.titleResId)
-                    )
-                },
+                icon = screen.icon,
                 label = { Text(stringResource(id = screen.titleResId)) },
                 selected = currentRoute == screen.route,
                 onClick = {
@@ -71,15 +67,9 @@ fun BottomNavigationBar(
             )
         }
 
-
         NavigationBarItem(
-            icon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.logof),
-                    contentDescription = stringResource(R.string.user_profile)
-                )
-            },
-            label = { Text(stringResource(R.string.user_profile)) },
+            icon = { Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings)) },
+            label = { Text(stringResource(R.string.settings)) },
             selected = false,
             onClick = onUserIconClick,
             colors = NavigationBarItemDefaults.colors(

@@ -15,14 +15,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.mobile_final.ui.*
-import com.example.mobile_final.ui.theme.Mobile_finalTheme
+import com.example.mobile_final.ui.theme.Mobile_finalThemeWithPref
+import com.example.mobile_final.utils.PreferencesManager
 
 class MainActivity : ComponentActivity() {
+    private lateinit var preferencesManager: PreferencesManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        preferencesManager = PreferencesManager(this)
         enableEdgeToEdge()
         setContent {
-            Mobile_finalTheme {
+            Mobile_finalThemeWithPref(
+                themeMode = preferencesManager.getThemeMode()
+            ) {
                 MainApp(
                     onLogout = {
 
@@ -47,13 +53,8 @@ fun MainApp(onLogout: () -> Unit) {
             BottomNavigationBar(
                 navController = navController,
                 onUserIconClick = {
-
-                    navController.navigate("profile") {
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
-                        }
+                    navController.navigate("settings") {
                         launchSingleTop = true
-                        restoreState = true
                     }
                 }
             )
@@ -78,6 +79,13 @@ fun MainApp(onLogout: () -> Unit) {
             composable(Screen.Profile.route) {
                 ProfileScreen(onLogout = onLogout)
             }
+            composable("settings") {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    val intent = Intent(context, SettingsActivity::class.java)
+                    context.startActivity(intent)
+                }
+            }
         }
     }
 }
@@ -85,7 +93,7 @@ fun MainApp(onLogout: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun MainAppPreview() {
-    Mobile_finalTheme {
+    Mobile_finalThemeWithPref {
         MainApp(onLogout = {})
     }
 }

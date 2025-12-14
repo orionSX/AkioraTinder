@@ -18,25 +18,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
-import com.example.mobile_final.ui.theme.Mobile_finalTheme
-import com.example.mobile_final.ui.theme.PrimaryDark
-import com.example.mobile_final.viewmodels.ChatViewModel
+import com.example.mobile_final.ui.theme.Mobile_finalThemeWithPref
+import com.example.mobile_final.utils.PreferencesManager
 
 class ChatsListActivity : ComponentActivity() {
     private lateinit var viewModel: ChatViewModel
+    private lateinit var preferencesManager: PreferencesManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        preferencesManager = PreferencesManager(this)
 
         viewModel = ViewModelProvider.AndroidViewModelFactory
             .getInstance(application)
             .create(ChatViewModel::class.java)
 
         setContent {
-            Mobile_finalTheme {
+            Mobile_finalThemeWithPref(
+                themeMode = preferencesManager.getThemeMode()
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = PrimaryDark
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.background
                 ) {
                     ChatsListScreen(viewModel = viewModel)
                 }
