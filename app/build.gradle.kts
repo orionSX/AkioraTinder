@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -74,5 +75,13 @@ dependencies {
     implementation("com.google.accompanist:accompanist-swiperefresh:0.36.0")
     
     // Card stack for swipeable cards
+    
+    // Room dependencies
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+    
+    // Gson for type converters
+    implementation("com.google.code.gson:gson:2.10.1")
 
 }
