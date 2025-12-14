@@ -101,4 +101,26 @@
     <string name="system_default">Системная</string>
     <string name="light_theme">Светлая тема</string>
     <string name="dark_theme">Темная тема</string>
+    
+    <!-- Profile editing -->
+    <string name="edit_profile">Редактировать профиль</string>
+    <string name="name">Имя</string>
+    <string name="age">Возраст</string>
+    <string name="gender">Пол</string>
+    <string name="discord">Discord</string>
+    <string name="save_changes">Сохранить изменения</string>
+    <string name="cancel">Отмена</string>
+    <string name="update_success">Профиль успешно обновлен</string>
+    <string name="update_error">Ошибка обновления профиля</string>
+    <string name="enter_name">Введите ваше имя</string>
+    <string name="enter_age">Введите ваш возраст</string>
+    <string name="enter_discord">Введите Discord</string>
+    <string name="male">Мужской</string>
+    <string name="female">Женский</string>
+    <string name="other">Другой</string>
+    <string name="not_specified">Не указано</string>
+    <string name="general_settings">Общие настройки</string>
+    <string name="profile_settings">Настройки профиля</string>
+    <string name="appearance">Внешний вид</string>
+    <string name="language">Язык</string>
 </resources>
