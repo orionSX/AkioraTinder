@@ -427,9 +427,13 @@ class ApiService private constructor(context: Context) {
     // Лайки/Дизлайки
     suspend fun likeForm(formId: String, userId: String? = null): Boolean = withContext(Dispatchers.IO) {
         val actualUserId = userId ?: userStore.getUserId() ?: return@withContext false
+        val json= JSONObject().apply{
+            put("user_id",actualUserId)
+        }
+        val requestBody = json.toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
-            .url("${baseUrl}forms/$formId/like?user_id=$actualUserId")
-            .post(RequestBody.create(null, ""))
+            .url("${baseUrl}forms/like/$formId")
+            .post(requestBody)
             .build()
 
         return@withContext try {
@@ -443,9 +447,13 @@ class ApiService private constructor(context: Context) {
 
     suspend fun dislikeForm(formId: String, userId: String? = null): Boolean = withContext(Dispatchers.IO) {
         val actualUserId = userId ?: userStore.getUserId() ?: return@withContext false
+        val json= JSONObject().apply{
+            put("user_id",actualUserId)
+        }
+        val requestBody = json.toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
-            .url("${baseUrl}forms/$formId/dislike?user_id=$actualUserId")
-            .post(RequestBody.create(null, ""))
+            .url("${baseUrl}forms/dislike/$formId")
+            .post(requestBody)
             .build()
 
         return@withContext try {

@@ -74,5 +74,5 @@ dependencies {
     implementation("com.google.accompanist:accompanist-swiperefresh:0.36.0")
     
     // Card stack for swipeable cards
-    implementation("io.github.dellisd:cardstack:1.0.0-alpha05")
+
 }
