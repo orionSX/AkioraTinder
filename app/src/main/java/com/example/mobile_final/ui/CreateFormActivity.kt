@@ -20,9 +20,10 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.mobile_final.dto.*
 import com.example.mobile_final.services.FormManager
 import com.example.mobile_final.storage.UserStore
-import com.example.mobile_final.ui.theme.MobilefinalTheme
+import com.example.mobile_final.ui.theme.Mobile_finalTheme
 import com.example.mobile_final.viewmodels.FormCreationViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class CreateFormActivity : ComponentActivity() {
@@ -38,7 +39,7 @@ class CreateFormActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this)[FormCreationViewModel::class.java]
 
         setContent {
-            MobilefinalTheme {
+            Mobile_finalTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
