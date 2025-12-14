@@ -44,6 +44,7 @@
 
     <!-- New tab -->
     <string name="tab_likes">Likes</string>
+    <string name="tab_chats">Chats</string>
 
 
     <!-- New profile fields -->
