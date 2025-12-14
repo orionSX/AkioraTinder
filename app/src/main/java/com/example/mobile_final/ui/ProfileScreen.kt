@@ -1,6 +1,7 @@
 // ProfileScreen.kt
 package com.example.mobile_final.ui
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -45,6 +46,15 @@ fun ProfileScreen(onLogout: () -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+
+        Button(onClick = {
+            val intent = Intent(context, CreateFormActivity::class.java)
+            context.startActivity(intent)
+        }) {
+            Text("Create Form")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(onClick = {
             authManager.logout()

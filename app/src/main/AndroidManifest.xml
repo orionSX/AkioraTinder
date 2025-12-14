@@ -47,6 +47,7 @@
             android:exported="true"        >
 
         </activity>
+        <activity android:name=".ui.CreateFormActivity"/>
     </application>
 
 </manifest>
