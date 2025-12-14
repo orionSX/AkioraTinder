@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Akiora</string>
+    <string name="login_title">Вход</string>
+    <string name="register_title">Регистрация</string>
+    <string name="email">Эл. почта</string>
+    <string name="password">Пароль</string>
+    <string name="login">Войти</string>
+    <string name="register">Зарегистрироваться</string>
+    <string name="login_success">Вход выполнен</string>
+    <string name="login_error">Ошибка входа — неверные данные</string>
+    <string name="register_success">Регистрация прошла успешно</string>
+    <string name="err_required">Обязательно</string>
+    <string name="server">Сервер</string>
+    <string name="role">Роль</string>
+    <string name="rank">Ранг</string>
+    <string name="settings">Настройки</string>
+    <string name="connect">Связаться</string>
+    <string name="reset_to_default">Сбросить до базовых</string>
+    <string name="switch_theme">Сменить тему</string>
+    <string name="switch_lang">Сменить язык</string>
+    <string name="tab_settings">Настройки</string>
+    <string name="tab_profile">Профиль</string>
+    <string name="tab_profiles">Профили</string>
+    <string name="err_email_invalid">Неверный формат email</string>
+    <string name="err_password_short">Пароль должен быть не менее 6 символов</string>
+    <string name="swipe_like">Лайк</string>
+    <string name="swipe_pass">Пропустить</string>
+    <string name="no_more_profiles">Больше нет профилей</string>
+    <string name="bio">О себе</string>
+    <string name="summoner_name">Имя призывателя</string>
+    <string name="your_profile">Ваш профиль</string>
+    <string name="save">Сохранить</string>
+    <string name="filter_servers">Фильтр серверов</string>
+    <string name="switch_to_light">Переключить на светлую</string>
+    <string name="switch_to_dark">Переключить на темную</string>
+    <string name="current_lang">Текущий: %1$s</string>
+    <!-- New profile fields -->
+    <string name="age">Возраст</string>
+    <string name="gender">Пол</string>
+    <string name="play_style">Стиль игры</string>
+    <string name="microphone">Микрофон</string>
+    <string name="goals">Цели</string>
+    <string name="play_schedule">Время игры</string>
+    <string name="rank_tier">Уровень ранга</string>
+    <string name="rank_division">Дивизион</string>
+
+    <!-- Selection options -->
+    <string name="prefer_not_to_say">Предпочитаю не указывать</string>
+    <string name="aggressive">Агрессивный</string>
+    <string name="passive">Пассивный</string>
+    <string name="strategic">Стратегический</string>
+    <string name="roaming">Роуминг</string>
+    <string name="farming">Фарминг</string>
+    <string name="team_player">Командный игрок</string>
+    <string name="yes">Да</string>
+    <string name="no">Нет</string>
+    <string name="sometimes">Иногда</string>
+    <string name="ranked_climbing">Подъем в ранге</string>
+    <string name="casual_fun">Казуальная игра</string>
+    <string name="learning">Обучение</string>
+    <string name="tournaments">Турниры</string>
+    <string name="making_friends">Знакомства</string>
+
+    <!-- Card titles -->
+    <string name="basic_information">Основная информация</string>
+    <string name="rank_information">Информация о ранге</string>
+    <string name="personal_information">Личная информация</string>
+    <string name="gaming_preferences">Игровые предпочтения</string>
+    <string name="profile_preview">Превью профиля</string>
+
+
+
+    <string name="liked_profiles">Лайкнутые анкеты</string>
+    <string name="no_likes_yet">Нету анкет</string>
+    <string name="no_likes_description">Свайпните вправо на понравившиеся анкеты</string>
+    <string name="remove_like">Убрать лайк</string>
+
+    <!-- New tab -->
+    <string name="tab_likes">Лайки</string>
+    <string name="err_password_mismatch">Пароли не совпадают</string>
+    <string name="invite_code_optional">код подтверждения</string>
+
+    <string name="verification_title">Подтверждение email</string>
+    <string name="verification_message">Код подтверждения отправлен на %s</string>
+    <string name="verification_code">Код подтверждения</string>
+    <string name="verify">Подтвердить</string>
+    <string name="verifying">Подтверждение…</string>
+    <string name="loading">Загрузка…</string>
+    <string name="confirm_password">подтвердить пароль</string>
+
+    <string name="title_activity_splash">SplashActivity</string>
+    <string name="back">Назад</string>
+
+    <string name="home">Главная</string>
+    <string name="chats">Чаты</string>
+    <string name="profile">Профиль</string>
+    <string name="user_profile">Профиль пользователя</string>
+    <string name="logout">Выйти</string>
+</resources>
