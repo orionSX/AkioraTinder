@@ -5,10 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.mobile_final.dto.Answer
 import com.example.mobile_final.dto.PlayerProfile
 import com.example.mobile_final.services.ApiService
+import com.example.mobile_final.viewmodels.RecommendationViewModel.UiState.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 class RecommendationViewModel(private val apiService: ApiService) : ViewModel() {
 
@@ -21,7 +21,7 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    private val _uiState = MutableStateFlow(UiState.IDLE)
+    private val _uiState = MutableStateFlow<UiState>(IDLE)
     val uiState: StateFlow<UiState> = _uiState
 
     init {
@@ -32,12 +32,15 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            
+            _uiState.value = IDLE
+
             try {
                 val recommendedProfiles = apiService.getRecommendedForms()
                 _profiles.value = recommendedProfiles
+                _uiState.value = ShowRecommendations
             } catch (e: Exception) {
                 _error.value = e.message
+                _uiState.value = ShowRecommendations // Все равно показываем рекомендации (пустой список)
             } finally {
                 _isLoading.value = false
             }
@@ -76,18 +79,39 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
         }
     }
 
-    fun passTest(formId: String, answers: List<Answer>): String {
-        var result = ""
+    fun passTest(formId: String, answers: List<Answer>) {
         viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
             try {
                 val response = apiService.passTest(formId, answers)
-                result = response
+
+                if (response.contains("success", ignoreCase = true) ||
+                    response.contains("успешно", ignoreCase = true)) {
+                    // Тест пройден успешно, удаляем анкету
+                    removeProfile(formId)
+                    _uiState.value = ShowTestResult(
+                        success = true,
+                        message = "Тест пройден успешно!"
+                    )
+                } else {
+                    // Ошибка при прохождении теста
+                    _uiState.value = ShowTestResult(
+                        success = false,
+                        message = response
+                    )
+                }
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = "Ошибка при отправке теста: ${e.message}"
+                _uiState.value = ShowTestResult(
+                    success = false,
+                    message = e.message
+                )
+            } finally {
+                _isLoading.value = false
             }
-        }.join() // Wait for completion
-        
-        return result
+        }
     }
 
     private fun removeProfile(formId: String) {
@@ -95,20 +119,24 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
     }
 
     fun navigateToTest(formId: String) {
-        _uiState.value = UiState.NavigateToTest(formId)
+        _uiState.value = NavigateToTest(formId = formId)
     }
 
     fun navigateToChat(chatId: String) {
-        _uiState.value = UiState.NavigateToChat(chatId)
+        _uiState.value = NavigateToChat(chatId)
     }
 
     fun resetNavigationState() {
-        _uiState.value = UiState.IDLE
+        _uiState.value = IDLE
     }
 
     fun navigateBackToRecommendations() {
-        loadRecommendedProfiles()
-        _uiState.value = UiState.ShowRecommendations
+        // Просто сбрасываем состояние, не загружаем заново
+        _uiState.value = ShowRecommendations
+    }
+
+    fun resetToIdle() {
+        _uiState.value = IDLE
     }
 
     sealed class UiState {

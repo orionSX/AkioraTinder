@@ -71,5 +71,5 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.57.1")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     // Swipe cards for Compose
-    implementation("com.mecofarid.tinderSwipeCards:swipe-card-compose:1.3.0")
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.36.0")
 }

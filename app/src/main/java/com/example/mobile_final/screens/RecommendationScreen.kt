@@ -1,6 +1,8 @@
 package com.example.mobile_final.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -12,10 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mobile_final.dto.PlayerProfile
-import com.mecofarid.tinderswipe.SwipeCard
-import com.mecofarid.tinderswipe.SwipeCardsBox
-import com.mecofarid.tinderswipe.rememberSwipeCardsBoxState
-import kotlinx.coroutines.launch
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,105 +28,127 @@ fun RecommendationScreen(
     onNavigateToChat: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val swipeCardsBoxState = rememberSwipeCardsBoxState()
-    val coroutineScope = rememberCoroutineScope()
+    var refreshing by remember { mutableStateOf(false) }
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = refreshing)
 
-    Box(modifier = modifier.fillMaxSize()) {
-        if (profiles.isEmpty()) {
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("Нет доступных анкет", fontSize = 18.sp)
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { /* Refresh logic */ }) {
-                    Text("Обновить")
-                }
-            }
-        } else {
-            SwipeCardsBox(
-                state = swipeCardsBoxState,
-                modifier = Modifier.fillMaxSize(),
-                enableRotation = true,
-                rotationAngle = 20f,
-                onSwipeEnd = { index ->
-                    // Card was swiped away, do nothing here since we handle actions in buttons
-                },
-                onSwipeCancel = { index ->
-                    // Card returned to original position
-                }
-            ) {
-                profiles.forEachIndexed { index, profile ->
-                    SwipeCard(
-                        modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .aspectRatio(0.8f),
-                        content = {
-                            ProfileCard(profile = profile)
-                        },
-                        onSwipedRight = {
-                            // Right swipe - like
-                            if (profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
-                                // Has test, navigate to test screen
-                                onNavigateToTest(profile.id)
-                            } else {
-                                // No test, just like
-                                onLike(profile.id)
-                            }
-                        },
-                        onSwipedLeft = {
-                            // Left swipe - dislike
-                            onDislike(profile.id)
-                        }
-                    )
-                }
-            }
+    LaunchedEffect(refreshing) {
+        if (refreshing) {
+            delay(1500) // Имитация загрузки
+            refreshing = false
+        }
+    }
 
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            swipeCardsBoxState.swipeLeft()
-                        }
-                    },
-                    modifier = Modifier.size(64.dp),
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                    contentPadding = PaddingValues(0.dp)
+    SwipeRefresh(
+        state = swipeRefreshState,
+        onRefresh = { refreshing = true },
+        modifier = modifier.fillMaxSize()
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (profiles.isEmpty()) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Dislike",
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                    Text("Нет доступных анкет", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { refreshing = true }) {
+                        Text("Обновить")
+                    }
                 }
-
-                OutlinedButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            swipeCardsBoxState.swipeRight()
-                        }
-                    },
-                    modifier = Modifier.size(64.dp),
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                    contentPadding = PaddingValues(0.dp)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = "Like",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    items(profiles) { profile ->
+                        ProfileCardWithButtons(
+                            profile = profile,
+                            onLike = {
+                                if (profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
+                                    onNavigateToTest(profile.id)
+                                } else {
+                                    onLike(profile.id)
+                                }
+                            },
+                            onDislike = { onDislike(profile.id) },
+                            onNavigateToChat = { onNavigateToChat(profile.id) }
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+@Composable
+fun ProfileCardWithButtons(
+    profile: PlayerProfile,
+    onLike: () -> Unit,
+    onDislike: () -> Unit,
+    onNavigateToChat: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Профиль карточки
+            ProfileCard(profile = profile)
+
+            // Кнопки действий
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                OutlinedButton(
+                    onClick = onDislike,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dislike",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Не подходит")
+                }
+
+                Button(
+                    onClick = onNavigateToChat,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary
+                    )
+                ) {
+                    Text("Написать")
+                }
+
+                Button(
+                    onClick = onLike,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Like",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Подходит")
+                }
+            }
+        }
+    }
+}
+
+// Остальной код ProfileCard и FlowRow остается без изменений
 @Composable
 fun ProfileCard(profile: PlayerProfile) {
     Card(
@@ -157,7 +180,7 @@ fun ProfileCard(profile: PlayerProfile) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 if (profile.userData.discord != null) {
                     Text(
                         text = "@${profile.userData.discord}",
@@ -280,7 +303,7 @@ fun FlowRow(
         modifier = modifier,
         horizontalArrangement = horizontalArrangement,
         verticalArrangement = verticalArrangement,
-        maxItemsInEachColumn = 2,
-        content = content
+
+        content = content as @Composable (FlowRowScope.() -> Unit)
     )
 }

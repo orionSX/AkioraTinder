@@ -14,6 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.mobile_final.screens.MainRecommendationScreen
 import com.example.mobile_final.ui.*
 import com.example.mobile_final.ui.theme.Mobile_finalThemeWithPref
 import com.example.mobile_final.utils.PreferencesManager
