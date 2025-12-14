@@ -18,7 +18,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
+import com.example.mobile_final.dao.QuestionDao
+import com.example.mobile_final.database.AppDatabase
 import com.example.mobile_final.dto.*
+import com.example.mobile_final.model.Question as ModelQuestion
 import com.example.mobile_final.services.FormManager
 import com.example.mobile_final.storage.UserStore
 import com.example.mobile_final.ui.theme.Mobile_finalTheme
@@ -28,6 +31,7 @@ import com.example.mobile_final.viewmodels.FormCreationViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.random.Random
 
 class CreateFormActivity : ComponentActivity() {
     private lateinit var formManager: FormManager
@@ -91,7 +95,9 @@ fun FormCreationScreen(
     val (selectedGameTypes, setSelectedGameTypes) = remember { mutableStateOf<List<GameType>>(emptyList()) }
 
     val (isLoading, setIsLoading) = remember { mutableStateOf(false) }
+    val (showAddTestDialog, setShowAddTestDialog) = remember { mutableStateOf(false) }
     val (showActivationDialog, setShowActivationDialog) = remember { mutableStateOf(false) }
+    val (showTestAddingProgress, setShowTestAddingProgress) = remember { mutableStateOf(false) }
     val (formId, setFormId) = remember { mutableStateOf("") }
     
     Column(
@@ -188,7 +194,7 @@ fun FormCreationScreen(
                         formManager.updateGameTypes(selectedGameTypes)
                         
                         // Create the form
-                        createForm(formManager, userStore, setIsLoading, setFormId, setShowActivationDialog, context)
+                        createFormWithTestPrompt(formManager, userStore, setIsLoading, setFormId, setShowAddTestDialog, context)
                     },
                     enabled = !isLoading
                 ) {
@@ -203,6 +209,62 @@ fun FormCreationScreen(
                 }
             }
         }
+    }
+    
+    if (showAddTestDialog) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Add Test to Form") },
+            text = { Text("Would you like to add a test to your form? This will randomly select 3 questions from your database.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        setShowAddTestDialog(false)
+                        setShowTestAddingProgress(true)
+                        addTestToForm(
+                            formManager,
+                            formId,
+                            context,
+                            onTestAdded = {
+                                setShowTestAddingProgress(false)
+                                setShowActivationDialog(true) // Show activation dialog after test is added
+                            },
+                            onTestAddFailed = {
+                                setShowTestAddingProgress(false)
+                                setShowActivationDialog(true) // Still show activation dialog if test adding fails
+                            }
+                        )
+                    }
+                ) {
+                    Text("Yes, Add Test")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        setShowAddTestDialog(false)
+                        setShowActivationDialog(true) // Show activation dialog directly if user doesn't want test
+                    }
+                ) {
+                    Text("No, Skip Test")
+                }
+            }
+        )
+    }
+    
+    if (showTestAddingProgress) {
+        AlertDialog(
+            onDismissRequest = { }, // Prevent dismissal while loading
+            title = { Text("Adding Test") },
+            text = { 
+                Column {
+                    Text("Adding test questions to your form...")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    CircularProgressIndicator()
+                }
+            },
+            confirmButton = { } // Empty confirm button to satisfy AlertDialog requirement
+        )
     }
     
     if (showActivationDialog) {
@@ -474,12 +536,12 @@ fun validateCurrentStep(
     }
 }
 
-fun createForm(
+fun createFormWithTestPrompt(
     formManager: FormManager,
     userStore: UserStore,
     setIsLoading: (Boolean) -> Unit,
     setFormId: (String) -> Unit,
-    setShowActivationDialog: (Boolean) -> Unit,
+    setShowAddTestDialog: (Boolean) -> Unit,
     context: android.content.Context
 ) {
     setIsLoading(true)
@@ -498,9 +560,13 @@ fun createForm(
             val result = formManager.createForm(userId)
             if (result != null) {
                 setFormId(result.id)
-                setShowActivationDialog(true)
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    setIsLoading(false)
+                    setShowAddTestDialog(true) // Show the test prompt dialog instead of activation
+                }
             } else {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    setIsLoading(false)
                     Toast.makeText(context, "Failed to create form", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -508,9 +574,53 @@ fun createForm(
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 Toast.makeText(context, "Error creating form: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-        } finally {
+            setIsLoading(false)
+        }
+    }
+}
+
+fun addTestToForm(
+    formManager: FormManager,
+    formId: String,
+    context: android.content.Context,
+    onTestAdded: () -> Unit,
+    onTestAddFailed: () -> Unit
+) {
+    // Get the database instance and DAO
+    val database = AppDatabase.getDatabase(context)
+    val questionDao = database.questionDao()
+    
+    // Get all questions from the local database
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        try {
+            val allQuestions = questionDao.getAllQuestionsList()
+            
+            if (allQuestions.isNotEmpty()) {
+                // Select 3 random questions from the database
+                val selectedQuestions = allQuestions.shuffled().take(3)
+                
+                // Update the form with the selected questions
+                val result = formManager.updateFormWithTest(formId, selectedQuestions, 2) // threshold of 2
+                
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (result != null) {
+                        Toast.makeText(context, "Test added to form successfully!", Toast.LENGTH_SHORT).show()
+                        onTestAdded()
+                    } else {
+                        Toast.makeText(context, "Failed to add test to form", Toast.LENGTH_SHORT).show()
+                        onTestAddFailed()
+                    }
+                }
+            } else {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    Toast.makeText(context, "No questions available in database", Toast.LENGTH_SHORT).show()
+                    onTestAddFailed()
+                }
+            }
+        } catch (e: Exception) {
             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                setIsLoading(false)
+                Toast.makeText(context, "Error adding test to form: ${e.message}", Toast.LENGTH_SHORT).show()
+                onTestAddFailed()
             }
         }
     }

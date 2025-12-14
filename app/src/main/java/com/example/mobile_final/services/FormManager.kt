@@ -81,4 +81,23 @@ class FormManager(private val context: Context) {
         formData.description = null
         formData.gameTypes = emptyList()
     }
+    
+    // Method to update a form with test questions
+    suspend fun updateFormWithTest(formId: String, questions: List<com.example.mobile_final.model.Question>, threshold: Int = 2): PlayerProfile? {
+        val formTest = FormTest(
+            questions = questions.map { 
+                Question(question = it.question, answer = when(it.answer) {
+                    com.example.mobile_final.model.AnswerType.YES -> Answer.YES
+                    com.example.mobile_final.model.AnswerType.NO -> Answer.NO
+                })
+            },
+            threshold = threshold
+        )
+        
+        val updateRequest = UpdateFormRequest(
+            formTest = formTest
+        )
+        
+        return apiService.updateForm(formId, updateRequest)
+    }
 }
