@@ -1,21 +1,17 @@
+
+// AppDatabase.kt
 package com.example.mobile_final.database
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
-import com.example.mobile_final.dto.PlayerProfile
-import com.example.mobile_final.utils.Converters
+import com.example.mobile_final.dao.QuestionDao
+import com.example.mobile_final.model.Question
 
-@Database(
-    entities = [PlayerProfile::class],
-    version = 1,
-    exportSchema = false
-)
-@TypeConverters(Converters::class)
+@Database(entities = [Question::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun playerDao(): PlayerDao
+    abstract fun questionDao(): QuestionDao
 
     companion object {
         @Volatile
@@ -27,9 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "app_database"
-                )
-                .fallbackToDestructiveMigration()
-                .build()
+                ).build()
                 INSTANCE = instance
                 instance
             }

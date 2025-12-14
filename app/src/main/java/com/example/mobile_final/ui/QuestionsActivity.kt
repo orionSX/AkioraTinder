@@ -1,5 +1,3 @@
-
-// QuestionsActivity.kt
 package com.example.mobile_final.ui
 
 import android.os.Bundle
@@ -15,10 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.example.mobile_final.database.AppDatabase
 import com.example.mobile_final.model.AnswerType
 import com.example.mobile_final.model.Question
@@ -26,31 +25,24 @@ import com.example.mobile_final.ui.theme.Mobile_finalTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.shape.RoundedCornerShape
-
+import android.util.Log
 
 class QuestionsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        
         setContent {
-            MobilefinalTheme {
-                // A surface container using the 'background' color from the theme
-
+            Mobile_finalTheme { // Исправлено: Mobile_finalTheme вместо MobilefinalTheme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-
                     QuestionsContent()
-
                 }
             }
         }
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +80,10 @@ fun QuestionsContent() {
                                 val database = AppDatabase.getDatabase(context)
                                 val dao = database.questionDao()
                                 dao.deleteAllQuestions()
-                                questions = emptyList()
+                                // Обновляем список после удаления
+                                loadQuestions(context) { loadedQuestions ->
+                                    questions = loadedQuestions
+                                }
                             }
                         },
                         enabled = questions.isNotEmpty()
@@ -377,41 +372,39 @@ private fun loadQuestions(
     onLoaded: (List<Question>) -> Unit
 ) {
     CoroutineScope(Dispatchers.IO).launch {
-        val database = AppDatabase.getDatabase(context)
-        val dao = database.questionDao()
+        try {
+            val database = AppDatabase.getDatabase(context)
+            val dao = database.questionDao()
 
-        // Flow не поддерживается напрямую, получаем данные сразу
-        val questionsList = dao.getAllQuestionsList()
-        // Если getAllQuestions возвращает Flow, нужно изменить на:
-        // val questionsList = dao.getAllQuestionsSync() - если создадим такой метод
-        // или изменить DAO чтобы возвращал List вместо Flow
-        onLoaded(questionsList)
+            // В зависимости от того, что возвращает ваш DAO
+            // Если getAllQuestions возвращает Flow, вам нужен такой метод:
+            // val questionsList = dao.getAllQuestionsSync() 
+            // или добавьте в DAO метод, который возвращает List<Question>
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+            // Если у вас есть метод getAllQuestionsList() в DAO:
+            val questionsList = dao.getAllQuestionsList() ?: emptyList()
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MobilefinalTheme {
-        Greeting("Android")
+            // Или если getAllQuestions() возвращает Flow, сделайте так:
+            // val questionsList = mutableListOf<Question>()
+            // dao.getAllQuestions().collect { questionsList.addAll(it) }
+
+            onLoaded(questionsList)
+        } catch (e: Exception) {
+            Log.e("QuestionsActivity", "Error loading questions: ${e.message}", e)
+            onLoaded(emptyList())
+        }
     }
 }
 
-// Load questions function that was mentioned in the error
-suspend fun loadQuestions(context: android.content.Context) {
-    try {
+// Отдельная suspend функция для загрузки вопросов (если нужно)
+suspend fun loadQuestionsSuspend(context: android.content.Context): List<Question> {
+    return try {
         val database = AppDatabase.getDatabase(context)
-        // Add your logic here to load questions from database
-        Log.d("QuestionsActivity", "Loading questions from database...")
+        val dao = database.questionDao()
+        // Здесь используйте ваш метод для получения списка вопросов
+        dao.getAllQuestionsList() ?: emptyList()
     } catch (e: Exception) {
         Log.e("QuestionsActivity", "Error loading questions: ${e.message}", e)
-        throw e
-
+        emptyList()
     }
 }
