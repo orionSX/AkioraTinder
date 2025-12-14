@@ -9,8 +9,17 @@
 
 # Dependencies
 .gradle/
+node_modules/
+vendor/
+
+# Build outputs
 build/
-app/build/
+bin/
+gen/
+out/
+
+# Logs
+*.log
 
 # Environment
 .env
@@ -23,18 +32,28 @@ app/build/
 *.swp
 *.swo
 
-# OS generated files
+# System
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-
-# Coverage reports
+# Coverage
 coverage/
 htmlcov/
-*.coverage
+.coverage
 
-# Local configuration
+# Python cache (if any Python files exist in project)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Java/Maven
+target/
+*.iml
+*.iws
+
+# Android specific
+.externalNativeBuild/
+.cxx/
 local.properties
 ```
