@@ -104,9 +104,11 @@ fun LoginScreen(
     LaunchedEffect(Unit) {
         val sessionInfo = authManager.currentUser
         if (sessionInfo !=null) {
+            if (sessionInfo?.value?.name !=null){
+                onLoginSuccess()
+            }
 
 
-            onLoginSuccess()
         }
     }
     Column(

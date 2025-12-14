@@ -8,7 +8,6 @@ import com.example.mobile_final.storage.UserStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 
 class ChatManager(
     private val context: Context,
@@ -16,8 +15,6 @@ class ChatManager(
     private val userStore: UserStore
 ) {
     private val tag = "ChatManager"
-
-    private val pollingChatService = PollingChatService(context, apiService, userStore)
 
     private val _activeChat = MutableStateFlow<Chat?>(null)
     val activeChat: StateFlow<Chat?> = _activeChat.asStateFlow()
@@ -34,33 +31,21 @@ class ChatManager(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    init {
-        // Subscribe to polling messages
-        pollingChatService.messages
-            .onEach { message -> handlePolledMessage(message) }
-            .launchIn(kotlinx.coroutines.MainScope())
-    }
-
-    fun startPolling() {
-        pollingChatService.startPolling()
-    }
-
-    fun stopPolling() {
-        pollingChatService.stopPolling()
-    }
-
     suspend fun loadChats(): List<Chat> = withContext(Dispatchers.IO) {
         _isLoading.value = true
         _error.value = null
 
         try {
+            Log.d(tag, "Loading chats...")
             val loadedChats = apiService.getChats()
+            Log.d(tag, "Loaded ${loadedChats.size} chats")
             _chats.value = loadedChats
-            
+
             loadedChats
         } catch (e: Exception) {
-            _error.value = "Ошибка загрузки чатов: ${e.message}"
-            Log.e(tag, "Error loading chats: ${e.message}")
+            val errorMsg = "Ошибка загрузки чатов: ${e.message}"
+            _error.value = errorMsg
+            Log.e(tag, errorMsg)
             emptyList()
         } finally {
             _isLoading.value = false
@@ -72,21 +57,33 @@ class ChatManager(
         _error.value = null
 
         try {
+            Log.d(tag, "Loading messages for chat: $chatId")
+
+            // Загружаем информацию о чате
             val chat = apiService.getChatById(chatId)
             _activeChat.value = chat
+            Log.d(tag, "Chat loaded: ${chat?.id}")
 
+            // Загружаем сообщения
             val loadedMessages = apiService.getMessages(chatId, limit = limit)
-            _messages.value = loadedMessages.sortedBy { it.timestamp }
+            Log.d(tag, "Loaded ${loadedMessages.size} messages")
+
+            // Сортируем по времени
+            val sortedMessages = loadedMessages.sortedBy { it.timestamp }
+            _messages.value = sortedMessages
+            Log.d(tag, "Messages set to state flow")
 
             // Отмечаем сообщения как прочитанные
+            val userId = userStore.getUserId()
             loadedMessages
-                .filter { it.creatorId != userStore.getUserId() && it.status != MessageStatus.READ }
+                .filter { it.creatorId != userId && it.status != MessageStatus.READ }
                 .forEach { message ->
                     apiService.markMessageAsRead(message.id)
                 }
         } catch (e: Exception) {
-            _error.value = "Ошибка загрузки сообщений: ${e.message}"
-            Log.e(tag, "Error loading messages: ${e.message}")
+            val errorMsg = "Ошибка загрузки сообщений: ${e.message}"
+            _error.value = errorMsg
+            Log.e(tag, errorMsg, e)
         } finally {
             _isLoading.value = false
         }
@@ -99,17 +96,21 @@ class ChatManager(
         _error.value = null
 
         return@withContext try {
+            Log.d(tag, "Sending message: $text to chat: ${chat.id}")
             val message = apiService.sendMessage(chat.id, text)
             message?.let { msg ->
+                Log.d(tag, "Message sent successfully: ${msg.id}")
                 // Обновляем локальный список сообщений
                 _messages.update { current ->
-                    (current + msg).sortedBy { it.timestamp }
+                    val newList = (current + msg).sortedBy { it.timestamp }
+                    newList
                 }
             }
             message
         } catch (e: Exception) {
-            _error.value = "Ошибка отправки сообщения: ${e.message}"
-            Log.e(tag, "Error sending message: ${e.message}")
+            val errorMsg = "Ошибка отправки сообщения: ${e.message}"
+            _error.value = errorMsg
+            Log.e(tag, errorMsg, e)
             null
         }
     }
@@ -145,37 +146,6 @@ class ChatManager(
     fun clearActiveChat() {
         _activeChat.value = null
         _messages.value = emptyList()
-    }
-
-    private fun handlePolledMessage(message: ChatMessage) {
-        // Если это сообщение для активного чата, добавляем его
-        if (_activeChat.value?.id == message.chatId) {
-            _messages.update { current ->
-                (current + message).sortedBy { it.timestamp }
-            }
-        }
-    }
-
-    private fun updateChatIgnoredStatus(chatId: String, ignoredBy: List<String>?) {
-        val userId = userStore.getUserId() ?: return
-
-        _chats.update { current ->
-            current.map { chat ->
-                if (chat.id == chatId) {
-                    chat.copy(
-                        ignoredBy = ignoredBy ?: chat.ignoredBy
-                    )
-                } else chat
-            }
-        }
-
-        if (_activeChat.value?.id == chatId) {
-            _activeChat.update { chat ->
-                chat?.copy(
-                    ignoredBy = ignoredBy ?: chat.ignoredBy
-                )
-            }
-        }
     }
 
     private fun updateChatIgnoredStatus(chatId: String, isIgnored: Boolean) {
@@ -230,28 +200,5 @@ class ChatManager(
     fun isChatIgnored(chatId: String): Boolean {
         val userId = userStore.getUserId() ?: return false
         return _chats.value.find { it.id == chatId }?.ignoredBy?.contains(userId) == true
-    }
-
-    // Method to get user names for chat participants
-    suspend fun getUserNamesForChats(): Map<String, String> = withContext(Dispatchers.IO) {
-        val userId = userStore.getUserId() ?: return@withContext emptyMap()
-        val chats = _chats.value
-        val userNames = mutableMapOf<String, String>()
-        
-        for (chat in chats) {
-            // Get the other participant in the chat (not the current user)
-            val otherUserId = if (chat.user1 == userId) chat.user2 else chat.user1
-            if (otherUserId != userId && !userNames.containsKey(otherUserId)) {
-                try {
-                    val userProfile = apiService.getUserById(otherUserId)
-                    userNames[otherUserId] = userProfile.name
-                } catch (e: Exception) {
-                    Log.e(tag, "Error getting user info for $otherUserId: ${e.message}")
-                    userNames[otherUserId] = "Пользователь $otherUserId" // Fallback name
-                }
-            }
-        }
-        
-        userNames
     }
 }

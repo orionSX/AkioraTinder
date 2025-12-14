@@ -54,7 +54,7 @@ class ChatViewModel : ViewModel() {
 
             viewModelScope.launch {
                 chatManager.activeChat.collect {
-                    // Keep active chat synced
+
                 }
             }
         }
@@ -123,15 +123,8 @@ class ChatViewModel : ViewModel() {
         return chatManager.getUnreadCount(chatId)
     }
 
-    fun connectWebSocket() {
-        // Start polling for new messages
-        chatManager.startPolling()
-    }
 
-    fun disconnectWebSocket() {
-        // Stop polling
-        chatManager.stopPolling()
-    }
+
 
     fun clearActiveChat() {
         _activeChatId.value = null

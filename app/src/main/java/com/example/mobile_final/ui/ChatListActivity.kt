@@ -31,7 +31,7 @@ class ChatsListActivity : ComponentActivity() {
             .getInstance(application)
             .create(ChatViewModel::class.java)
 
-        // Инициализируем ViewModel
+
         viewModel.initialize(applicationContext)
 
         setContent {
@@ -47,13 +47,13 @@ class ChatsListActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.connectWebSocket()
+
         viewModel.loadChats()
     }
 
     override fun onPause() {
         super.onPause()
-        viewModel.disconnectWebSocket()
+
     }
 }
 
@@ -85,7 +85,7 @@ fun ChatsListScreen(viewModel: ChatViewModel) {
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(32.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(chats, key = { it.id }) { chat ->

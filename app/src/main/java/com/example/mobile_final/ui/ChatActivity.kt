@@ -1,4 +1,3 @@
-// ChatActivity.kt
 package com.example.mobile_final.ui
 
 import android.content.Intent
@@ -75,21 +74,12 @@ class ChatActivity : ComponentActivity() {
             }
         }
     }
-
-    override fun onResume() {
-        super.onResume()
-        viewModel.connectWebSocket()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        viewModel.disconnectWebSocket()
-    }
 }
 
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     val activeChatId by viewModel.activeChatId.collectAsState()
+    val activeChat by viewModel.activeChat.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -98,6 +88,12 @@ fun ChatScreen(viewModel: ChatViewModel) {
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
+    // Загружаем сообщения при первом отображении экрана
+    LaunchedEffect(activeChatId) {
+        if (activeChatId != null) {
+            viewModel.setActiveChat(activeChatId!!)
+        }
+    }
 
     // Авто-скролл к последнему сообщению
     LaunchedEffect(messages.size) {
@@ -107,13 +103,24 @@ fun ChatScreen(viewModel: ChatViewModel) {
         }
     }
 
+    // Для отладки - выводим в лог состояние
+    LaunchedEffect(messages.size) {
+        println("ChatScreen: messages count = ${messages.size}")
+        println("ChatScreen: activeChatId = $activeChatId")
+        println("ChatScreen: currentUserId = $currentUserId")
+        println("ChatScreen: isLoading = $isLoading")
+        println("ChatScreen: error = $error")
+    }
+
     Scaffold(
         topBar = {
             ChatTopBar(
-                chatId = activeChatId!!,
+                chatId = activeChatId ?: "",
                 isLoading = isLoading,
                 onBackClick = { (context as ChatActivity).finish() },
-                onIgnoreClick = { activeChatId?.let { viewModel.toggleIgnoreChat(it) } },
+                onIgnoreClick = {
+                    activeChatId?.let { viewModel.toggleIgnoreChat(it) }
+                },
                 isChatIgnored = activeChatId?.let { viewModel.isChatIgnored(it) } ?: false
             )
         },
@@ -125,7 +132,6 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     }
                 },
                 enabled = activeChatId != null && !isLoading
-
             )
         }
     ) { paddingValues ->
@@ -139,7 +145,17 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = "Загрузка сообщений...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
                 }
             } else if (activeChatId == null) {
                 Box(
@@ -153,36 +169,51 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     )
                 }
             } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    reverseLayout = false,
-                    verticalArrangement = Arrangement.Top,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    items(messages, key = { it.id }) { message ->
-                        MessageBubble(
-                            message = message,
-                            isOwnMessage = message.creatorId == currentUserId,
-                            modifier = Modifier
+                if (messages.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Нет сообщений",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        reverseLayout = false,
+                        verticalArrangement = Arrangement.Top,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        items(messages, key = { it.id }) { message ->
+                            MessageBubble(
+                                message = message,
+                                isOwnMessage = message.creatorId == currentUserId,
+                                modifier = Modifier
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 }
             }
 
-            error?.let {
-                AnimatedVisibility(
-                    visible = it.isNotEmpty(),
-                    enter = fadeIn(animationSpec = tween(300)),
-                    exit = fadeOut(animationSpec = tween(300))
-                ) {
-                    Snackbar(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .align(Alignment.BottomCenter)
+            error?.let { errorMessage ->
+                if (errorMessage.isNotEmpty()) {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(animationSpec = tween(300)),
+                        exit = fadeOut(animationSpec = tween(300))
                     ) {
-                        Text(text = it)
+                        Snackbar(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .align(Alignment.BottomCenter)
+                        ) {
+                            Text(text = errorMessage)
+                        }
                     }
                 }
             }
@@ -203,16 +234,18 @@ fun ChatTopBar(
         title = {
             Column {
                 Text(
-                    text = "Чат",
+                    text = if (chatId.isNotEmpty()) "Чат" else "Выберите чат",
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = if (isChatIgnored) "Чат игнорируется" else "Активен",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                if (chatId.isNotEmpty()) {
+                    Text(
+                        text = if (isChatIgnored) "Чат игнорируется" else "Активен",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
         },
         navigationIcon = {
@@ -221,19 +254,21 @@ fun ChatTopBar(
             }
         },
         actions = {
-            IconButton(
-                onClick = onIgnoreClick,
-                enabled = !isLoading
-            ) {
-                Icon(
-                    imageVector = if (isChatIgnored)
-                        Icons.Default.Notifications
-                    else
-                        Icons.Default.NotificationsOff,
-                    contentDescription = if (isChatIgnored)
-                        "Включить уведомления"
-                    else "Игнорировать чат"
-                )
+            if (chatId.isNotEmpty()) {
+                IconButton(
+                    onClick = onIgnoreClick,
+                    enabled = !isLoading
+                ) {
+                    Icon(
+                        imageVector = if (isChatIgnored)
+                            Icons.Default.Notifications
+                        else
+                            Icons.Default.NotificationsOff,
+                        contentDescription = if (isChatIgnored)
+                            "Включить уведомления"
+                        else "Игнорировать чат"
+                    )
+                }
             }
         }
     )
@@ -245,7 +280,7 @@ fun MessageBubble(
     isOwnMessage: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val alignment = if (isOwnMessage) Alignment.End else Alignment.Start
+    // Используем Alignment.Start и Alignment.End напрямую, но оборачиваем в Alignment
     val bubbleColor = if (isOwnMessage)
         MaterialTheme.colorScheme.primary
     else
@@ -255,9 +290,10 @@ fun MessageBubble(
     else
         MaterialTheme.colorScheme.onSurface
 
-    Box(
+    // Альтернативный подход: используем Row вместо Box с contentAlignment
+    Row(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = alignment as Alignment
+        horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start
     ) {
         Column(
             horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start,
@@ -311,13 +347,11 @@ fun MessageBubble(
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessageInputField(
     onSendMessage: (String) -> Unit,
-    enabled: Boolean = true,
-
+    enabled: Boolean = true
 ) {
     var text by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -362,7 +396,6 @@ fun MessageInputField(
                         if (text.isNotBlank()) {
                             onSendMessage(text)
                             text = ""
-
                         }
                     }
                 ),
@@ -376,7 +409,6 @@ fun MessageInputField(
                     if (text.isNotBlank()) {
                         onSendMessage(text)
                         text = ""
-
                     }
                 },
                 enabled = enabled && text.isNotBlank(),
@@ -403,7 +435,6 @@ fun MessageInputField(
         }
     }
 }
-
 @Composable
 fun ChatListItem(
     chat: com.example.mobile_final.dto.Chat,
@@ -496,30 +527,18 @@ fun ChatListItem(
     }
 }
 
+
+
 fun formatMessageTime(timestamp: String): String {
     return try {
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         sdf.timeZone = TimeZone.getTimeZone("UTC")
         val date = sdf.parse(timestamp)
 
-        val now = Calendar.getInstance()
-        val messageDate = Calendar.getInstance().apply { time = date }
+        val outputFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+        outputFormat.timeZone = TimeZone.getDefault()
 
-        val today = now.get(Calendar.DATE) == messageDate.get(Calendar.DATE)
-        val yesterday = now.get(Calendar.DATE) - 1 == messageDate.get(Calendar.DATE)
-
-        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        timeFormat.timeZone = TimeZone.getDefault()
-
-        when {
-            today -> timeFormat.format(date)
-            yesterday -> "Вчера, ${timeFormat.format(date)}"
-            else -> {
-                val dateFormat = SimpleDateFormat("dd.MM, HH:mm", Locale.getDefault())
-                dateFormat.timeZone = TimeZone.getDefault()
-                dateFormat.format(date)
-            }
-        }
+        outputFormat.format(date)
     } catch (e: Exception) {
         timestamp
     }
@@ -531,29 +550,10 @@ fun formatChatTime(timestamp: String): String {
         sdf.timeZone = TimeZone.getTimeZone("UTC")
         val date = sdf.parse(timestamp)
 
-        val now = Calendar.getInstance()
-        val chatDate = Calendar.getInstance().apply { time = date }
+        val outputFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+        outputFormat.timeZone = TimeZone.getDefault()
 
-        val daysDiff = (now.timeInMillis - chatDate.timeInMillis) / (1000 * 60 * 60 * 24)
-
-        when {
-            daysDiff == 0L -> {
-                val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-                timeFormat.timeZone = TimeZone.getDefault()
-                timeFormat.format(date)
-            }
-            daysDiff == 1L -> "Вчера"
-            daysDiff < 7 -> {
-                val dayFormat = SimpleDateFormat("EEEE", Locale.getDefault())
-                dayFormat.timeZone = TimeZone.getDefault()
-                dayFormat.format(date)
-            }
-            else -> {
-                val dateFormat = SimpleDateFormat("dd.MM.yy", Locale.getDefault())
-                dateFormat.timeZone = TimeZone.getDefault()
-                dateFormat.format(date)
-            }
-        }
+        outputFormat.format(date)
     } catch (e: Exception) {
         timestamp
     }
