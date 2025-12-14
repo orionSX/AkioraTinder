@@ -1,3 +1,4 @@
+
 // QuestionsActivity.kt
 package com.example.mobile_final.ui
 
@@ -27,22 +28,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.RoundedCornerShape
 
+
 class QuestionsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        
         setContent {
-            Mobile_finalTheme {
+            MobilefinalTheme {
+                // A surface container using the 'background' color from the theme
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+
                     QuestionsContent()
+
                 }
             }
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -378,5 +386,32 @@ private fun loadQuestions(
         // val questionsList = dao.getAllQuestionsSync() - если создадим такой метод
         // или изменить DAO чтобы возвращал List вместо Flow
         onLoaded(questionsList)
+
+@Composable
+fun Greeting(name: String, modifier: Modifier = Modifier) {
+    Text(
+        text = "Hello $name!",
+        modifier = modifier
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GreetingPreview() {
+    MobilefinalTheme {
+        Greeting("Android")
+    }
+}
+
+// Load questions function that was mentioned in the error
+suspend fun loadQuestions(context: android.content.Context) {
+    try {
+        val database = AppDatabase.getDatabase(context)
+        // Add your logic here to load questions from database
+        Log.d("QuestionsActivity", "Loading questions from database...")
+    } catch (e: Exception) {
+        Log.e("QuestionsActivity", "Error loading questions: ${e.message}", e)
+        throw e
+
     }
 }

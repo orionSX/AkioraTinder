@@ -1,47 +1,38 @@
 ```
-# Compiled and build artifacts
-*.class
-*.dex
-*.so
-*.aar
-*.apk
-*.jar
-
 # Dependencies
 .gradle/
+node_modules/
+
+# Build artifacts
 build/
-app/build/
+target/
+dist/
+
+# IDE files
+.idea/
+.vscode/
+
+# Compiled files
+*.class
+*.jar
+*.war
+*.aar
+
+# Logs
+*.log
 
 # Environment
 .env
 .env.local
 *.env.*
 
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Python (if applicable)
+# Python cache (if any Python files exist in project)
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-venv/
-.venv/
-.env
+
+# System files
+.DS_Store
+Thumbs.db
 ```
