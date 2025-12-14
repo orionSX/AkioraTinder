@@ -35,7 +35,8 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
             _uiState.value = IDLE
 
             try {
-                val recommendedProfiles = apiService.getRecommendedForms()
+                val userId = apiService.getCurrentUserId()
+                val recommendedProfiles = apiService.getRecommendedForms(userId)
                 _profiles.value = recommendedProfiles
                 _uiState.value = ShowRecommendations
             } catch (e: Exception) {
