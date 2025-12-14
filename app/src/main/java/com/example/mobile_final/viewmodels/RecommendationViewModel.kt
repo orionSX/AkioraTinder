@@ -52,14 +52,74 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
         viewModelScope.launch {
             try {
                 val result = apiService.likeForm(formId)
-                if (!result) {
-                    _error.value = "Ошибка при лайке анкеты"
-                } else {
-                    // Remove the liked profile from the list
-                    removeProfile(formId)
+                
+                // Parse the result to check if it contains chat or test information
+                try {
+                    val jsonResponse = JSONObject(result)
+                    
+                    // Check if the response contains chat information
+                    if (jsonResponse.has("_id") && jsonResponse.has("user1")) {
+                        // This is a chat object, extract chat ID
+                        val chatId = jsonResponse.optString("_id", "")
+                        if (chatId.isNotEmpty()) {
+                            _uiState.value = NavigateToChat(chatId)
+                            removeProfile(formId) // Remove the profile after navigating to chat
+                        } else {
+                            _error.value = "Ошибка получения информации о чате"
+                        }
+                    } else {
+                        // Check for other possible chat ID formats
+                        val chatId = jsonResponse.optString("chat_id",
+                            jsonResponse.optString("chatId",
+                                jsonResponse.optString("id", "")))
+                        
+                        if (chatId.isNotEmpty()) {
+                            _uiState.value = NavigateToChat(chatId)
+                            removeProfile(formId) // Remove the profile after navigating to chat
+                        } else {
+                            // No chat was created, check if there's a test to take
+                            val profile = _profiles.value.find { it.id == formId }
+                            if (profile != null && profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
+                                _uiState.value = NavigateToTest(formId = formId)
+                            } else {
+                                // No chat and no test, just remove the profile
+                                removeProfile(formId)
+                            }
+                        }
+                    }
+                } catch (jsonException: Exception) {
+                    // If JSON parsing fails, check if result contains chat-like information
+                    if (result.contains("chat", ignoreCase = true) || 
+                        result.contains("_id") || result.contains("user1")) {
+                        // Try to extract chat ID from text
+                        val regex = "(_id|id|chat_id|chatId)[=:\"\\s]+([\\w-]+)".toRegex(RegexOption.IGNORE_CASE)
+                        val matchResult = regex.find(result)
+                        val chatId = matchResult?.groupValues?.getOrNull(2)
+                        
+                        if (!chatId.isNullOrEmpty()) {
+                            _uiState.value = NavigateToChat(chatId)
+                            removeProfile(formId)
+                        } else {
+                            // No chat found, check for test
+                            val profile = _profiles.value.find { it.id == formId }
+                            if (profile != null && profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
+                                _uiState.value = NavigateToTest(formId = formId)
+                            } else {
+                                removeProfile(formId)
+                            }
+                        }
+                    } else {
+                        // No chat found, check for test
+                        val profile = _profiles.value.find { it.id == formId }
+                        if (profile != null && profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
+                            _uiState.value = NavigateToTest(formId = formId)
+                        } else {
+                            removeProfile(formId)
+                        }
+                    }
                 }
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = "Ошибка при лайке анкеты: ${e.message}"
             }
         }
     }
