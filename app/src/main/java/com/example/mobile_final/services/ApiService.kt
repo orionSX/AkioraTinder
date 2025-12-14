@@ -408,6 +408,36 @@ class ApiService private constructor(context: Context) {
             null
         }
     }
+    suspend fun updateFormTest(id: String, update: UpdateFormTestRequest): Boolean= withContext(Dispatchers.IO) {
+        val actualUserId =  userStore.getUserId() ?: return@withContext false
+        val json = JSONObject().apply {
+            if (update.formTest != null) {
+                put("form_test", update.formTest)
+                put("user_id", actualUserId)
+            }
+
+
+        }
+
+        val requestBody = json.toString().toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("${baseUrl}forms/test/$id")
+            .patch(requestBody)
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("ApiService", "Update form error: ${e.message}")
+            false
+        }
+    }
 
     suspend fun deleteForm(id: String): Boolean = withContext(Dispatchers.IO) {
         val request = Request.Builder()

@@ -54,3 +54,7 @@ data class UpdateFormRequest(
     val personData: PersonData? = null,
     val gameTypes: List<GameType>? = null
 )
+@Serializable
+data class UpdateFormTestRequest(
+    val formTest: FormTest? = null
+)

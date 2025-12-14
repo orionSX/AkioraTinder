@@ -94,7 +94,7 @@ class FormManager(private val context: Context) {
             threshold = threshold
         )
         
-        val updateRequest = UpdateFormRequest(
+        val updateRequest = UpdateFormTestRequest(
             formTest = formTest
         )
         
