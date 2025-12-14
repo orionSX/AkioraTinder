@@ -46,7 +46,7 @@ class SettingsActivity : ComponentActivity() {
             AkioraTinderTheme(darkTheme = darkTheme) {
                 Scaffold(
                     topBar = { TopBar() },
-                    bottomBar = { BottomNav(2) }
+                    bottomBar = { BottomNav(3) } // SettingsActivity is at index 3
                 ) { padding ->
                     Box(modifier = Modifier.padding(padding)) {
                         SettingsScreen(

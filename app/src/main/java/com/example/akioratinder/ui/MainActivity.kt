@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -21,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import com.example.akioratinder.data.*
 import com.example.akioratinder.services.*
 import com.example.akioratinder.storage.*
+import com.example.akioratinder.ui.components.*
 import com.example.akioratinder.ui.components.SwipeableCardStack
 import com.example.akioratinder.ui.theme.AkioraTinderTheme
 import com.example.akioratinder.R
@@ -153,54 +155,4 @@ fun TopBar() {
             }
         }
     )
-}
-
-@Composable
-fun BottomNav(current: Int) {
-    val context = LocalContext.current
-    NavigationBar {
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Home, contentDescription = null) },
-            label = { Text(stringResource(R.string.tab_profiles)) },
-            selected = current == 0,
-            onClick = {
-                if (context !is MainActivity) {
-                    context.startActivity(Intent(context, MainActivity::class.java))
-                }
-            }
-        )
-
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Favorite, contentDescription = null) },
-            label = { Text(stringResource(R.string.tab_likes)) },
-            selected = current == 3,
-            onClick = {
-                if (context !is LikesActivity) {
-                    context.startActivity(Intent(context, LikesActivity::class.java))
-                }
-            }
-        )
-
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
-            label = { Text(stringResource(R.string.tab_profile)) },
-            selected = current == 1,
-            onClick = {
-                if (context !is UserProfileActivity) {
-                    context.startActivity(Intent(context, UserProfileActivity::class.java))
-                }
-            }
-        )
-
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-            label = { Text(stringResource(R.string.tab_settings)) },
-            selected = current == 2,
-            onClick = {
-                if (context !is SettingsActivity) {
-                    context.startActivity(Intent(context, SettingsActivity::class.java))
-                }
-            }
-        )
-    }
 }
