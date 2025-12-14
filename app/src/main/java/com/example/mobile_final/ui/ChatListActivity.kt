@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import com.example.mobile_final.ui.theme.Mobile_finalThemeWithPref
 import com.example.mobile_final.utils.PreferencesManager
+import com.example.mobile_final.viewmodels.ChatViewModel
 
 class ChatsListActivity : ComponentActivity() {
     private lateinit var viewModel: ChatViewModel
