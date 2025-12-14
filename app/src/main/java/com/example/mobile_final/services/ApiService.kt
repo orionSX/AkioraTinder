@@ -639,6 +639,34 @@ class ApiService private constructor(context: Context) {
         }
     }
 
+    // Тестирование
+    suspend fun passTest(formId: String, answers: List<Answer>): String = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext "{}"
+        val json = JSONObject().apply {
+            put("user_id", userId)
+            put("answers", JSONArray(answers.map { it.toString().lowercase() }))
+        }
+
+        val requestBody = json.toString().toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("${baseUrl}forms/$formId/pass_test")
+            .post(requestBody)
+            .build()
+
+        return@withContext try {
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                response.body?.string() ?: "{}"
+            } else {
+                "{}"
+            }
+        } catch (e: Exception) {
+            Log.e("ApiService", "Pass test error: ${e.message}")
+            "{}"
+        }
+    }
+
     // Рекомендации
     suspend fun getRecommendedForms(userId: String? = null): List<PlayerProfile> = withContext(Dispatchers.IO) {
         val actualUserId = userId ?: userStore.getUserId() ?: return@withContext emptyList()

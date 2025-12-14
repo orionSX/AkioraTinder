@@ -48,6 +48,8 @@
 
         </activity>
         <activity android:name=".ui.CreateFormActivity"/>
+        <activity android:name=".ui.RecommendationActivity"/>
+        <activity android:name=".ui.TestActivity"/>
     </application>
 
 </manifest>

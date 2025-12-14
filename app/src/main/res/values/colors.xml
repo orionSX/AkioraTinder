@@ -7,6 +7,11 @@
     <color name="background_light">#FAFAFA</color>
     <color name="background_dark">#121212</color>
     <color name="splash_screen_background">#FF002A</color>
-
-
+    
+    <!-- Additional colors for recommendation activity -->
+    <color name="background">@color/background_light</color>
+    <color name="text_primary">#000000</color>
+    <color name="text_secondary">#666666</color>
+    <color name="like_green">#4CAF50</color>
+    <color name="dislike_red">#F44336</color>
 </resources>
