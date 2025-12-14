@@ -59,7 +59,7 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
                     val jsonResponse = JSONObject(result)
                     
                     // Check if the response contains chat information
-                    if (jsonResponse.has("_id") ) {
+                    if (jsonResponse.has("_id") && jsonResponse.has("user_1")) {
 
                         val chatId = jsonResponse.optString("_id", "")
                         if (chatId.isNotEmpty()) {
@@ -70,8 +70,13 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
                         }
                     }
                     else{
-                        _uiState.value=NavigateToTest(formId)
-                        removeProfile(formId)
+                        val profile = _profiles.value.find { it.id == formId }
+                        _uiState.value = if (profile != null && profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
+                            NavigateToTest(formId = formId)
+                        } else {
+                            removeProfile(formId)
+                            ShowRecommendations
+                        }
                     }
                 } catch (jsonException: Exception) {
                     // If JSON parsing fails, check if result contains chat-like information
@@ -134,18 +139,40 @@ class RecommendationViewModel(private val apiService: ApiService) : ViewModel() 
             try {
                 val response = apiService.passTest(formId, answers)
 
-                if (response) {
-                    // Тест пройден успешно, удаляем анкету
-                    removeProfile(formId)
+                // Parse the response to check if it contains chat information
+                try {
+                    val jsonResponse = JSONObject(response)
+                    
+                    // Check if the response contains chat information
+                    if (jsonResponse.has("_id") && jsonResponse.has("user_1")) {
+                        // This is a chat object, extract the chat ID
+                        val chatId = jsonResponse.optString("_id", "")
+                        if (chatId.isNotEmpty()) {
+                            // Test passed successfully and chat created
+                            removeProfile(formId) // Remove the profile after getting chat info
+                            _uiState.value = ShowTestResult(
+                                success = true,
+                                message = response  // Return the full response
+                            )
+                        } else {
+                            // No chat ID found in response
+                            _uiState.value = ShowTestResult(
+                                success = true,
+                                message = response
+                            )
+                        }
+                    } else {
+                        // No chat object found, but test might still be successful
+                        _uiState.value = ShowTestResult(
+                            success = true,
+                            message = response
+                        )
+                    }
+                } catch (jsonException: Exception) {
+                    // If JSON parsing fails, just return the response as is
                     _uiState.value = ShowTestResult(
                         success = true,
-                        message = "Тест пройден успешно!"
-                    )
-                } else {
-                    // Ошибка при прохождении теста
-                    _uiState.value = ShowTestResult(
-                        success = false,
-                        message = "failed test"
+                        message = response
                     )
                 }
             } catch (e: Exception) {

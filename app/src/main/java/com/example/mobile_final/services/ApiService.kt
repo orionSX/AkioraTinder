@@ -654,8 +654,8 @@ class ApiService private constructor(context: Context) {
     }
 
     // Тестирование
-    suspend fun passTest(formId: String, answers: List<Answer>): Boolean = withContext(Dispatchers.IO) {
-        val userId = userStore.getUserId() ?: return@withContext false
+    suspend fun passTest(formId: String, answers: List<Answer>): String = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext "{}"
         val json = JSONObject().apply {
             put("user_id", userId)
             put("answers", JSONArray(answers.map { it.toString().lowercase() }))
@@ -671,13 +671,13 @@ class ApiService private constructor(context: Context) {
         return@withContext try {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
-                true
+                response.body?.string() ?: "{}"
             } else {
-               false
+               "{}"
             }
         } catch (e: Exception) {
             Log.e("ApiService", "Pass test error: ${e.message}")
-            false
+            "{}"
         }
     }
 
