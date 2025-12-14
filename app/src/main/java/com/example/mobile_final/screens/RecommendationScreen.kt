@@ -1,8 +1,6 @@
 package com.example.mobile_final.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -16,6 +14,9 @@ import androidx.compose.ui.unit.sp
 import com.example.mobile_final.dto.PlayerProfile
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import io.github.dellisd.cardstack.CardStack
+import io.github.dellisd.cardstack.CardStackState
+import io.github.dellisd.cardstack.SwipeDirection
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,6 +31,27 @@ fun RecommendationScreen(
 ) {
     var refreshing by remember { mutableStateOf(false) }
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = refreshing)
+    
+    val cardStackState = remember {
+        CardStackState(
+            onSwipe = { index, direction ->
+                val profileId = profiles[index].id
+                when (direction) {
+                    SwipeDirection.Left -> onDislike(profileId)
+                    SwipeDirection.Right -> {
+                        val profile = profiles[index]
+                        if (profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
+                            onNavigateToTest(profileId)
+                        } else {
+                            onLike(profileId)
+                        }
+                    }
+                    else -> {}
+                }
+                true
+            }
+        )
+    }
 
     LaunchedEffect(refreshing) {
         if (refreshing) {
@@ -56,24 +78,77 @@ fun RecommendationScreen(
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                // Card stack for swipeable profiles
+                CardStack(
+                    state = cardStackState,
+                    content = {
+                        profiles.forEachIndexed { index, profile ->
+                            ProfileCard(
+                                profile = profile,
+                                onNavigateToChat = { onNavigateToChat(profile.id) }
+                            )
+                        }
+                    }
+                )
+                
+                // Action buttons overlay
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
                 ) {
-                    items(profiles) { profile ->
-                        ProfileCardWithButtons(
-                            profile = profile,
-                            onLike = {
-                                if (profile.formTest != null && profile.formTest.questions.isNotEmpty()) {
-                                    onNavigateToTest(profile.id)
-                                } else {
-                                    onLike(profile.id)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                if (profiles.isNotEmpty()) {
+                                    onDislike(profiles[cardStackState.currentIndex].id)
                                 }
                             },
-                            onDislike = { onDislike(profile.id) },
-                            onNavigateToChat = { onNavigateToChat(profile.id) }
-                        )
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dislike",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Не подходит")
+                        }
+                        
+                        Spacer(modifier = Modifier.width(16.dp))
+                        
+                        Button(
+                            onClick = {
+                                if (profiles.isNotEmpty()) {
+                                    val currentProfile = profiles[cardStackState.currentIndex]
+                                    if (currentProfile.formTest != null && currentProfile.formTest.questions.isNotEmpty()) {
+                                        onNavigateToTest(currentProfile.id)
+                                    } else {
+                                        onLike(currentProfile.id)
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = "Like",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Подходит")
+                        }
                     }
                 }
             }
@@ -82,84 +157,16 @@ fun RecommendationScreen(
 }
 
 @Composable
-fun ProfileCardWithButtons(
-    profile: PlayerProfile,
-    onLike: () -> Unit,
-    onDislike: () -> Unit,
-    onNavigateToChat: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Профиль карточки
-            ProfileCard(profile = profile)
-
-            // Кнопки действий
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                OutlinedButton(
-                    onClick = onDislike,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Dislike",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Не подходит")
-                }
-
-                Button(
-                    onClick = onNavigateToChat,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary
-                    )
-                ) {
-                    Text("Написать")
-                }
-
-                Button(
-                    onClick = onLike,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = "Like",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Подходит")
-                }
-            }
-        }
-    }
-}
-
-// Остальной код ProfileCard и FlowRow остается без изменений
-@Composable
-fun ProfileCard(profile: PlayerProfile) {
+fun ProfileCard(profile: PlayerProfile, onNavigateToChat: () -> Unit) {
     Card(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp),
+            .fillMaxWidth()
+            .padding(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(16.dp)
         ) {
             // User info
@@ -287,6 +294,18 @@ fun ProfileCard(profile: PlayerProfile) {
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            // Chat button at the bottom
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onNavigateToChat,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Написать")
             }
         }
     }

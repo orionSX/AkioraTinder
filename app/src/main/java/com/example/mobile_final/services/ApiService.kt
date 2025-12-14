@@ -190,6 +190,10 @@ class ApiService private constructor(context: Context) {
         return@withContext userStore.getUserData()
     }
 
+    fun getCurrentUserId(): String? {
+        return userStore.getUserId()
+    }
+
     suspend fun getUserById(userId: String): UserProfile = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url("${baseUrl}users/${userId}")
