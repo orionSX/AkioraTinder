@@ -18,6 +18,9 @@ class ChatViewModel : ViewModel() {
     private val _activeChatId = MutableStateFlow<String?>(null)
     val activeChatId: StateFlow<String?> = _activeChatId.asStateFlow()
 
+    private val _activeChat = MutableStateFlow<com.example.mobile_final.dto.Chat?>(null)
+    val activeChat: StateFlow<com.example.mobile_final.dto.Chat?> = _activeChat.asStateFlow()
+
     val chats = MutableStateFlow<List<Chat>>(emptyList())
     val messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val isLoading = MutableStateFlow(false)
@@ -63,6 +66,10 @@ class ChatViewModel : ViewModel() {
             isLoading.value = true
             try {
                 chatManager.loadMessages(chatId)
+                
+                // Get the active chat from the manager and update our local state
+                val chat = chatManager.activeChat.value
+                _activeChat.value = chat
             } catch (e: Exception) {
                 error.value = "Ошибка загрузки сообщений: ${e.message}"
             } finally {
@@ -128,6 +135,7 @@ class ChatViewModel : ViewModel() {
 
     fun clearActiveChat() {
         _activeChatId.value = null
+        _activeChat.value = null
         chatManager.clearActiveChat()
     }
 }

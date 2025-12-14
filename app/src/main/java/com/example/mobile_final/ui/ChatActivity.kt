@@ -78,18 +78,18 @@ class ChatActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-
+        viewModel.connectWebSocket()
     }
 
     override fun onPause() {
         super.onPause()
-
+        viewModel.disconnectWebSocket()
     }
 }
 
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
-    val activeChat by viewModel.activeChatId.collectAsState()
+    val activeChatId by viewModel.activeChatId.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -110,11 +110,11 @@ fun ChatScreen(viewModel: ChatViewModel) {
     Scaffold(
         topBar = {
             ChatTopBar(
-                chat = activeChat!!,
+                chatId = activeChatId!!,
                 isLoading = isLoading,
                 onBackClick = { (context as ChatActivity).finish() },
-                onIgnoreClick = { activeChat?.let { viewModel.toggleIgnoreChat(it) } },
-                isChatIgnored = activeChat?.let { viewModel.isChatIgnored(it) } ?: false
+                onIgnoreClick = { activeChatId?.let { viewModel.toggleIgnoreChat(it) } },
+                isChatIgnored = activeChatId?.let { viewModel.isChatIgnored(it) } ?: false
             )
         },
         bottomBar = {
@@ -124,7 +124,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         viewModel.sendMessage(text)
                     }
                 },
-                enabled = activeChat != null && !isLoading,
+                enabled = activeChatId != null && !isLoading
 
             )
         }
@@ -141,7 +141,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 ) {
                     CircularProgressIndicator()
                 }
-            } else if (activeChat == null) {
+            } else if (activeChatId == null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -193,7 +193,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatTopBar(
-    chat: String,
+    chatId: String,
     isLoading: Boolean,
     onBackClick: () -> Unit,
     onIgnoreClick: () -> Unit,
@@ -202,21 +202,16 @@ fun ChatTopBar(
     TopAppBar(
         title = {
             Column {
-                chat?.let {
-                    Text(
-                        text = "Чат",
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = if (isChatIgnored) "Чат игнорируется" else "Активен",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                } ?: Text(
-                    text = "Чаты",
-                    style = MaterialTheme.typography.titleMedium
+                Text(
+                    text = "Чат",
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (isChatIgnored) "Чат игнорируется" else "Активен",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         },
@@ -226,21 +221,19 @@ fun ChatTopBar(
             }
         },
         actions = {
-            if (chat != null) {
-                IconButton(
-                    onClick = onIgnoreClick,
-                    enabled = !isLoading
-                ) {
-                    Icon(
-                        imageVector = if (isChatIgnored)
-                            Icons.Default.Notifications
-                        else
-                            Icons.Default.NotificationsOff,
-                        contentDescription = if (isChatIgnored)
-                            "Включить уведомления"
-                        else "Игнорировать чат"
-                    )
-                }
+            IconButton(
+                onClick = onIgnoreClick,
+                enabled = !isLoading
+            ) {
+                Icon(
+                    imageVector = if (isChatIgnored)
+                        Icons.Default.Notifications
+                    else
+                        Icons.Default.NotificationsOff,
+                    contentDescription = if (isChatIgnored)
+                        "Включить уведомления"
+                    else "Игнорировать чат"
+                )
             }
         }
     )
