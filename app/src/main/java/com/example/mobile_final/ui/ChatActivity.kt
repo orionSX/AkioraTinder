@@ -1,5 +1,6 @@
 package com.example.mobile_final.ui
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import com.example.mobile_final.ui.theme.Mobile_finalThemeWithPref
+import com.example.mobile_final.utils.LocaleHelper
 import com.example.mobile_final.utils.PreferencesManager
 import com.example.mobile_final.viewmodels.ChatViewModel
 import kotlinx.coroutines.delay
@@ -46,6 +48,12 @@ import java.util.*
 class ChatActivity : ComponentActivity() {
     private lateinit var viewModel: ChatViewModel
     private lateinit var preferencesManager: PreferencesManager
+    override fun attachBaseContext(newBase: Context) {
+        val preferencesManager = PreferencesManager(newBase)
+        val language = preferencesManager.getLanguage()
+        val context = LocaleHelper.setLocale(newBase, language)
+        super.attachBaseContext(context)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -439,12 +447,11 @@ fun MessageInputField(
 fun ChatListItem(
     chat: com.example.mobile_final.dto.Chat,
     currentUserId: String,
+    userName: String, // Добавлен новый параметр
     unreadCount: Int = 0,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val otherUserId = if (chat.user1 == currentUserId) chat.user2 else chat.user1
-
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -471,7 +478,7 @@ fun ChatListItem(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = otherUserId.take(2).uppercase(),
+                    text = userName.take(2).uppercase(),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -483,7 +490,7 @@ fun ChatListItem(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Пользователь $otherUserId",
+                    text = userName, // Используем имя вместо ID
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -528,33 +535,84 @@ fun ChatListItem(
 }
 
 
-
 fun formatMessageTime(timestamp: String): String {
     return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        sdf.timeZone = TimeZone.getTimeZone("UTC")
-        val date = sdf.parse(timestamp)
+        // Пробуем разные форматы, которые могут прийти с сервера
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",  // С микросекундами
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",     // С миллисекундами
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",         // Без миллисекунд
+            "yyyy-MM-dd HH:mm:ss",              // Альтернативный формат
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",       // С таймзоной
+            "yyyy-MM-dd'T'HH:mm:ssZ"            // С таймзоной без миллисекунд
+        )
+
+        var date: Date? = null
+        for (format in formats) {
+            try {
+                val sdf = SimpleDateFormat(format, Locale.getDefault())
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                val parsed = sdf.parse(timestamp)
+                if (parsed != null) {
+                    date = parsed
+                    break
+                }
+            } catch (e: Exception) {
+                continue
+            }
+        }
+
+        if (date == null) {
+            return timestamp // Возвращаем оригинал, если не смогли распарсить
+        }
 
         val outputFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
         outputFormat.timeZone = TimeZone.getDefault()
 
         outputFormat.format(date)
     } catch (e: Exception) {
+        e.printStackTrace() // Для отладки
         timestamp
     }
 }
 
 fun formatChatTime(timestamp: String): String {
     return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        sdf.timeZone = TimeZone.getTimeZone("UTC")
-        val date = sdf.parse(timestamp)
+        // Аналогичный гибкий парсинг для formatChatTime
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ"
+        )
+
+        var date: Date? = null
+        for (format in formats) {
+            try {
+                val sdf = SimpleDateFormat(format, Locale.getDefault())
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                val parsed = sdf.parse(timestamp)
+                if (parsed != null) {
+                    date = parsed
+                    break
+                }
+            } catch (e: Exception) {
+                continue
+            }
+        }
+
+        if (date == null) {
+            return timestamp
+        }
 
         val outputFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
         outputFormat.timeZone = TimeZone.getDefault()
 
         outputFormat.format(date)
     } catch (e: Exception) {
+        e.printStackTrace() // Для отладки
         timestamp
     }
 }

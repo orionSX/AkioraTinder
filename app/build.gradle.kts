@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+
 }
 
 android {
@@ -40,7 +41,8 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.androidx.compose.material)
+    val room_version = "2.8.4"
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -72,6 +74,9 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     // Swipe cards for Compose
     implementation("com.google.accompanist:accompanist-swiperefresh:0.36.0")
+    implementation("androidx.room:room-ktx:2.6.1")
+    implementation("androidx.room:room-runtime:2.2.6")
+    implementation("androidx.room:room-common:2.2.6")
     
     // Card stack for swipeable cards
 

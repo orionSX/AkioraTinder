@@ -22,7 +22,7 @@
     <string name="tab_settings">Настройки</string>
     <string name="tab_profile">Профиль</string>
     <string name="tab_profiles">Профили</string>
-    <string name="recommendations">Рекомендации</string>
+    <string name="recommendations">Анкеты</string>
     <string name="err_email_invalid">Неверный формат email</string>
     <string name="err_password_short">Пароль должен быть не менее 6 символов</string>
     <string name="swipe_like">Лайк</string>
@@ -105,8 +105,7 @@
     <!-- Profile editing -->
     <string name="edit_profile">Редактировать профиль</string>
     <string name="name">Имя</string>
-    <string name="age">Возраст</string>
-    <string name="gender">Пол</string>
+
     <string name="discord">Discord</string>
     <string name="save_changes">Сохранить изменения</string>
     <string name="cancel">Отмена</string>
@@ -123,4 +122,6 @@
     <string name="profile_settings">Настройки профиля</string>
     <string name="appearance">Внешний вид</string>
     <string name="language">Язык</string>
+    <string name="create_form">Создать Анкету</string>
+    <string name="no_chats">Нет чатов</string>
 </resources>

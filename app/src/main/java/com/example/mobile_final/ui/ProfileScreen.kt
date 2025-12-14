@@ -40,7 +40,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(text = "Имя: ${user.collectAsState().value?.name}")
+                Text(text = stringResource(R.string.name) + ": ${user.collectAsState().value?.name}")
                 Text(text = "Email: ${user.collectAsState().value?.email}")
             }
         }
@@ -51,7 +51,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
             val intent = Intent(context, CreateFormActivity::class.java)
             context.startActivity(intent)
         }) {
-            Text("Create Form")
+            Text(stringResource(R.string.create_form))
         }
 
         Spacer(modifier = Modifier.height(16.dp))

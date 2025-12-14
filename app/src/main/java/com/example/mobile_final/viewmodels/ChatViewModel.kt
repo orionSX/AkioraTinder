@@ -29,6 +29,7 @@ class ChatViewModel : ViewModel() {
 
     fun initialize(context: Context) {
         if (!isInitialized) {
+
             authManager = AuthManager.getInstance(context)
             chatManager = ChatManager(context,
                 com.example.mobile_final.services.ApiService.getInstance(context),

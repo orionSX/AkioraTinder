@@ -1,5 +1,6 @@
 package com.example.mobile_final.ui
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,6 +15,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,14 +60,30 @@ import kotlinx.coroutines.launch
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.mobile_final.MainActivity
 import com.example.mobile_final.services.AuthManager
+import com.example.mobile_final.utils.LocaleHelper
+import com.example.mobile_final.utils.PreferencesManager
 
 class LoginActivity : ComponentActivity() {
+    private lateinit var preferencesManager: PreferencesManager
+    override fun attachBaseContext(newBase: Context) {
+        val preferencesManager = PreferencesManager(newBase)
+        val language = preferencesManager.getLanguage()
+        val context = LocaleHelper.setLocale(newBase, language)
+        super.attachBaseContext(context)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        preferencesManager = PreferencesManager(this)
 
         setContent {
-            Mobile_finalTheme {
+            Mobile_finalTheme(
+                darkTheme = when (preferencesManager.getThemeMode()) {
+                    "light" -> false
+                    "dark" -> true
+                    else -> isSystemInDarkTheme()  // Используем системную тему по умолчанию
+                }
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

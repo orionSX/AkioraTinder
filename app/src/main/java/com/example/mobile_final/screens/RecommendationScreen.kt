@@ -122,25 +122,9 @@ fun ProfileCardWithActions(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Не подходит")
+
                 }
 
-                // Кнопка "Написать"
-                OutlinedButton(
-                    onClick = onNavigateToChat,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.tertiary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Message,
-                        contentDescription = "Chat",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Написать")
-                }
 
                 // Кнопка "Подходит"
                 Button(
@@ -156,7 +140,7 @@ fun ProfileCardWithActions(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Подходит")
+
                 }
             }
         }
@@ -176,7 +160,7 @@ fun ProfileCardContent(profile: PlayerProfile) {
         ) {
             Column {
                 Text(
-                    text = "${profile.userData.name}, ${profile.userData.age ?: "N/A"}",
+                    text = "${profile.userData.name}, ${profile.userData.gender}, ${profile.userData.age ?: "N/A"} y.o.",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -185,11 +169,21 @@ fun ProfileCardContent(profile: PlayerProfile) {
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    text = "now: ${profile.gameData.stats.soloQueue?.currentRank} ${profile.gameData.stats.soloQueue?.currentLp}",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "peak: ${profile.gameData.stats.soloQueue?.bestRank} ${profile.gameData.stats.soloQueue?.bestLp}",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             if (profile.userData.discord != null) {
                 Text(
-                    text = "@${profile.userData.discord}",
+                    text = "Discord @${profile.userData.discord}",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary
                 )

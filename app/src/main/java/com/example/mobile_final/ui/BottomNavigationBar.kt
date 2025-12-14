@@ -18,7 +18,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.mobile_final.R
 
 sealed class Screen(val route: String, val titleResId: Int, val icon: @Composable () -> Unit) {
-    object Home : Screen("home", R.string.tab_profile, { Icon(Icons.Default.Person, contentDescription = null) })
+    object Home : Screen("home", R.string.home, { Icon(Icons.Default.Cottage, contentDescription = null) })
     object Chats : Screen("chats", R.string.chats, { Icon(Icons.Default.Chat, contentDescription = null) })
     object Profile : Screen("profile", R.string.profile, { Icon(Icons.Default.AccountCircle, contentDescription = null) })
     object Recommendations : Screen("recommendations", R.string.recommendations, { Icon(Icons.Default.Favorite, contentDescription = null) })

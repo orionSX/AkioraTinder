@@ -1,5 +1,6 @@
 package com.example.mobile_final.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.widget.*
 import androidx.activity.ComponentActivity
@@ -21,6 +22,8 @@ import com.example.mobile_final.dto.*
 import com.example.mobile_final.services.FormManager
 import com.example.mobile_final.storage.UserStore
 import com.example.mobile_final.ui.theme.Mobile_finalTheme
+import com.example.mobile_final.utils.LocaleHelper
+import com.example.mobile_final.utils.PreferencesManager
 import com.example.mobile_final.viewmodels.FormCreationViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,7 +33,12 @@ class CreateFormActivity : ComponentActivity() {
     private lateinit var formManager: FormManager
     private lateinit var userStore: UserStore
     private lateinit var viewModel: FormCreationViewModel
-
+    override fun attachBaseContext(newBase: Context) {
+        val preferencesManager = PreferencesManager(newBase)
+        val language = preferencesManager.getLanguage()
+        val context = LocaleHelper.setLocale(newBase, language)
+        super.attachBaseContext(context)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
