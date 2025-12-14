@@ -37,7 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
-import com.example.mobile_final.ui.theme.Mobile_finalTheme
+import com.example.mobile_final.ui.theme.Mobile_finalThemeWithPref
+import com.example.mobile_final.utils.PreferencesManager
 import com.example.mobile_final.viewmodels.ChatViewModel
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -45,9 +46,11 @@ import java.util.*
 
 class ChatActivity : ComponentActivity() {
     private lateinit var viewModel: ChatViewModel
+    private lateinit var preferencesManager: PreferencesManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        preferencesManager = PreferencesManager(this)
 
         viewModel = ViewModelProvider.AndroidViewModelFactory
             .getInstance(application)
@@ -59,7 +62,7 @@ class ChatActivity : ComponentActivity() {
         }
 
         setContent {
-            Mobile_finalTheme {
+            Mobile_finalThemeWithPref(themeMode = preferencesManager.getThemeMode()) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
