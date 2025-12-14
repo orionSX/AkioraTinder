@@ -1,31 +1,37 @@
 ```
 # Compiled and build artifacts
 *.class
-*.o
-*.obj
-*.out
-build/
+*.dex
+*.so
+*.aar
+*.apk
+*.jar
+
 # Dependencies
-node_modules/
-venv/
-.venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-target/
 .gradle/
-# Logs and temp files
-*.log
-*.tmp
-*.swp
+build/
+app/build/
+
 # Environment
 .env
 .env.local
 *.env.*
+
 # Editors
 .vscode/
 .idea/
-# OS specific
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Testing
+*. Coverage
+coverage/
+htmlcov/
 ```

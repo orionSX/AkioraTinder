@@ -425,8 +425,8 @@ class ApiService private constructor(context: Context) {
     }
 
     // Лайки/Дизлайки
-    suspend fun likeForm(formId: String, userId: String? = null): Boolean = withContext(Dispatchers.IO) {
-        val actualUserId = userId ?: userStore.getUserId() ?: return@withContext false
+    suspend fun likeForm(formId: String, userId: String? = null): String = withContext(Dispatchers.IO) {
+        val actualUserId = userId ?: userStore.getUserId() ?: return@withContext "{}"
         val json= JSONObject().apply{
             put("user_id",actualUserId)
         }
@@ -438,10 +438,14 @@ class ApiService private constructor(context: Context) {
 
         return@withContext try {
             val response = client.newCall(request).execute()
-            response.isSuccessful
+            if (response.isSuccessful) {
+                response.body?.string() ?: "{}"
+            } else {
+                "{}"
+            }
         } catch (e: Exception) {
             Log.e("ApiService", "Like form error: ${e.message}")
-            false
+            "{}"
         }
     }
 

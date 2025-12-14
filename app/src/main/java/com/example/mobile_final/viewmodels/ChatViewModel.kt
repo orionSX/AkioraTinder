@@ -82,12 +82,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         return chatManager.getTotalUnreadCount()
     }
 
-    fun connectWebSocket() {
-        chatManager.connectWebSocket()
+    fun startPolling() {
+        chatManager.startPolling()
     }
 
-    fun disconnectWebSocket() {
-        chatManager.disconnectWebSocket()
+    fun stopPolling() {
+        chatManager.stopPolling()
     }
 
     fun clearError() {
@@ -98,6 +98,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
-        chatManager.disconnectWebSocket()
+        chatManager.stopPolling()
     }
 }

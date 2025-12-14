@@ -17,7 +17,7 @@ class ChatManager(
 ) {
     private val tag = "ChatManager"
 
-    private val chatWebSocketService = ChatWebSocketService(context, userStore)
+    private val pollingChatService = PollingChatService(context, apiService, userStore)
 
     private val _activeChat = MutableStateFlow<Chat?>(null)
     val activeChat: StateFlow<Chat?> = _activeChat.asStateFlow()
@@ -35,33 +35,33 @@ class ChatManager(
     val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
-        // Подписываемся на WebSocket сообщения
-        chatWebSocketService.messages
-            .onEach { handleWebSocketMessage(it) }
+        // Subscribe to polling messages
+        pollingChatService.messages
+            .onEach { message -> handlePolledMessage(message) }
             .launchIn(kotlinx.coroutines.MainScope())
     }
 
-    fun connectWebSocket() {
-        val userId = userStore.getUserId()
-        userId?.let {
-            chatWebSocketService.connect(it)
-        }
+    fun startPolling() {
+        pollingChatService.startPolling()
     }
 
-    fun disconnectWebSocket() {
-        chatWebSocketService.disconnect()
+    fun stopPolling() {
+        pollingChatService.stopPolling()
     }
 
-    suspend fun loadChats() = withContext(Dispatchers.IO) {
+    suspend fun loadChats(): List<Chat> = withContext(Dispatchers.IO) {
         _isLoading.value = true
         _error.value = null
 
         try {
             val loadedChats = apiService.getChats()
             _chats.value = loadedChats
+            
+            loadedChats
         } catch (e: Exception) {
             _error.value = "Ошибка загрузки чатов: ${e.message}"
             Log.e(tag, "Error loading chats: ${e.message}")
+            emptyList()
         } finally {
             _isLoading.value = false
         }
@@ -105,16 +105,6 @@ class ChatManager(
                 _messages.update { current ->
                     (current + msg).sortedBy { it.timestamp }
                 }
-
-                // Отправляем через WebSocket если есть соединение
-                if (chatWebSocketService.isConnected()) {
-                    val json = JSONObject().apply {
-                        put("type", "message")
-                        put("chat_id", chat.id)
-                        put("text", text)
-                    }
-                    chatWebSocketService.sendMessage(json.toString())
-                }
             }
             message
         } catch (e: Exception) {
@@ -157,55 +147,11 @@ class ChatManager(
         _messages.value = emptyList()
     }
 
-    private fun handleWebSocketMessage(message: ChatWebSocketMessage) {
-        when (message) {
-            is ChatWebSocketMessage.Message -> {
-                // Новое сообщение
-                val newMessage = ChatMessage(
-                    id = message.messageId,
-                    creatorId = message.creatorId,
-                    text = message.text,
-                    timestamp = message.timestamp,
-                    status = when (message.status) {
-                        "read" -> MessageStatus.READ
-                        "delivered" -> MessageStatus.DELIVERED
-                        else -> MessageStatus.SENT
-                    },
-                    chatId = message.chatId
-                )
-
-                // Если это сообщение для активного чата, добавляем его
-                if (_activeChat.value?.id == message.chatId) {
-                    _messages.update { current ->
-                        (current + newMessage).sortedBy { it.timestamp }
-                    }
-                }
-            }
-
-            is ChatWebSocketMessage.MessageStatus -> {
-                // Обновление статуса сообщения
-                _messages.update { current ->
-                    current.map { msg ->
-                        if (msg.id == message.messageId) {
-                            msg.copy(
-                                status = when (message.status) {
-                                    "read" -> MessageStatus.READ
-                                    "delivered" -> MessageStatus.DELIVERED
-                                    else -> msg.status
-                                }
-                            )
-                        } else msg
-                    }
-                }
-            }
-
-            is ChatWebSocketMessage.ChatUpdate -> {
-                // Обновление информации о чате
-                updateChatIgnoredStatus(message.chatId, message.ignoredBy)
-            }
-
-            is ChatWebSocketMessage.Error -> {
-                _error.value = message.error
+    private fun handlePolledMessage(message: ChatMessage) {
+        // Если это сообщение для активного чата, добавляем его
+        if (_activeChat.value?.id == message.chatId) {
+            _messages.update { current ->
+                (current + message).sortedBy { it.timestamp }
             }
         }
     }
@@ -284,5 +230,28 @@ class ChatManager(
     fun isChatIgnored(chatId: String): Boolean {
         val userId = userStore.getUserId() ?: return false
         return _chats.value.find { it.id == chatId }?.ignoredBy?.contains(userId) == true
+    }
+
+    // Method to get user names for chat participants
+    suspend fun getUserNamesForChats(): Map<String, String> = withContext(Dispatchers.IO) {
+        val userId = userStore.getUserId() ?: return@withContext emptyMap()
+        val chats = _chats.value
+        val userNames = mutableMapOf<String, String>()
+        
+        for (chat in chats) {
+            // Get the other participant in the chat (not the current user)
+            val otherUserId = if (chat.user1 == userId) chat.user2 else chat.user1
+            if (otherUserId != userId && !userNames.containsKey(otherUserId)) {
+                try {
+                    val userProfile = apiService.getUserById(otherUserId)
+                    userNames[otherUserId] = userProfile.name
+                } catch (e: Exception) {
+                    Log.e(tag, "Error getting user info for $otherUserId: ${e.message}")
+                    userNames[otherUserId] = "Пользователь $otherUserId" // Fallback name
+                }
+            }
+        }
+        
+        userNames
     }
 }
