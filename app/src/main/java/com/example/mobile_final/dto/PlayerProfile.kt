@@ -1,10 +1,14 @@
 package com.example.mobile_final.dto
 
+import androidx.room.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import com.google.gson.annotations.SerializedName
 
+@Entity(tableName = "playerprofiles")
 @Serializable
 data class PlayerProfile(
+    @PrimaryKey
     @SerialName("_id") val id: String = "",
     val creatorId: String,
     val account: Account,
