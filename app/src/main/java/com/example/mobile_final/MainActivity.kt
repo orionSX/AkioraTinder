@@ -68,6 +68,16 @@ fun MainApp(onLogout: () -> Unit) {
             composable(Screen.Home.route) {
                 HomeScreen()
             }
+            composable(Screen.Recommendations.route) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val apiService = com.example.mobile_final.services.ApiService.getInstance(context)
+                MainRecommendationScreen(
+                    apiService = apiService,
+                    onNavigateToChat = { chatId ->
+                        navController.navigate("chat/$chatId")
+                    }
+                )
+            }
             composable(Screen.Chats.route) {
 
                 val context = androidx.compose.ui.platform.LocalContext.current
@@ -84,6 +94,19 @@ fun MainApp(onLogout: () -> Unit) {
                 androidx.compose.runtime.LaunchedEffect(Unit) {
                     val intent = Intent(context, SettingsActivity::class.java)
                     context.startActivity(intent)
+                }
+            }
+            composable("chat/{chatId}") { backStackEntry ->
+                val chatId = backStackEntry.arguments?.getString("chatId")
+                if (chatId != null) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val apiService = com.example.mobile_final.services.ApiService.getInstance(context)
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        val intent = Intent(context, ChatActivity::class.java).apply {
+                            putExtra("chatId", chatId)
+                        }
+                        context.startActivity(intent)
+                    }
                 }
             }
         }

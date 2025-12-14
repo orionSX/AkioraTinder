@@ -21,6 +21,7 @@ sealed class Screen(val route: String, val titleResId: Int, val icon: @Composabl
     object Home : Screen("home", R.string.tab_profile, { Icon(Icons.Default.Person, contentDescription = null) })
     object Chats : Screen("chats", R.string.chats, { Icon(Icons.Default.Chat, contentDescription = null) })
     object Profile : Screen("profile", R.string.profile, { Icon(Icons.Default.AccountCircle, contentDescription = null) })
+    object Recommendations : Screen("recommendations", R.string.recommendations, { Icon(Icons.Default.Favorite, contentDescription = null) })
 }
 
 @Composable
@@ -30,6 +31,7 @@ fun BottomNavigationBar(
 ) {
     val items = listOf(
         Screen.Home,
+        Screen.Recommendations,
         Screen.Chats,
         Screen.Profile
     )

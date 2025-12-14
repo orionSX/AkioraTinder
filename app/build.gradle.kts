@@ -70,5 +70,6 @@ dependencies {
     implementation("javax.inject:javax.inject:1")
     implementation("com.google.dagger:hilt-android:2.57.1")
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation("com.yuyakaido.android:card-stack-view:2.3.4")
+    // Swipe cards for Compose
+    implementation("com.mecofarid.tinderSwipeCards:swipe-card-compose:1.3.0")
 }
