@@ -101,5 +101,27 @@
     <string name="system_default">System Default</string>
     <string name="light_theme">Light Theme</string>
     <string name="dark_theme">Dark Theme</string>
+    
+    <!-- Profile editing -->
+    <string name="edit_profile">Edit Profile</string>
+    <string name="name">Name</string>
+    <string name="age">Age</string>
+    <string name="gender">Gender</string>
+    <string name="discord">Discord</string>
+    <string name="save_changes">Save Changes</string>
+    <string name="cancel">Cancel</string>
+    <string name="update_success">Profile updated successfully</string>
+    <string name="update_error">Error updating profile</string>
+    <string name="enter_name">Enter your name</string>
+    <string name="enter_age">Enter your age</string>
+    <string name="enter_discord">Enter Discord username</string>
+    <string name="male">Male</string>
+    <string name="female">Female</string>
+    <string name="other">Other</string>
+    <string name="not_specified">Not Specified</string>
+    <string name="general_settings">General Settings</string>
+    <string name="profile_settings">Profile Settings</string>
+    <string name="appearance">Appearance</string>
+    <string name="language">Language</string>
 
 </resources>
