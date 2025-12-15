@@ -31,28 +31,28 @@ import com.example.mobile_final.viewmodels.FormCreationViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.random.Random
 
 class CreateFormActivity : ComponentActivity() {
     private lateinit var formManager: FormManager
     private lateinit var userStore: UserStore
     private lateinit var viewModel: FormCreationViewModel
+
     override fun attachBaseContext(newBase: Context) {
         val preferencesManager = PreferencesManager(newBase)
         val language = preferencesManager.getLanguage()
         val context = LocaleHelper.setLocale(newBase, language)
         super.attachBaseContext(context)
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         formManager = FormManager(this)
         userStore = UserStore(this)
         viewModel = ViewModelProvider(this)[FormCreationViewModel::class.java]
 
         setContent {
             Mobile_finalTheme {
-                // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -79,14 +79,14 @@ fun FormCreationScreen(
     val context = LocalContext.current
     var currentStep by remember { mutableStateOf(1) }
     val maxSteps = 3
-    
+
     val (accountName, setAccountName) = remember { mutableStateOf("") }
     val (accountServer, setAccountServer) = remember { mutableStateOf("") }
     val (accountTag, setAccountTag) = remember { mutableStateOf("") }
-    
+
     val (selectedRoles, setSelectedRoles) = remember { mutableStateOf<List<Role>>(emptyList()) }
     val (selectedRolesLookingFor, setSelectedRolesLookingFor) = remember { mutableStateOf<List<Role>>(emptyList()) }
-    
+
     val (description, setDescription) = remember { mutableStateOf("") }
     val (minAge, setMinAge) = remember { mutableStateOf("") }
     val (maxAge, setMaxAge) = remember { mutableStateOf("") }
@@ -99,7 +99,15 @@ fun FormCreationScreen(
     val (showActivationDialog, setShowActivationDialog) = remember { mutableStateOf(false) }
     val (showTestAddingProgress, setShowTestAddingProgress) = remember { mutableStateOf(false) }
     val (formId, setFormId) = remember { mutableStateOf("") }
-    
+    val (availableQuestions, setAvailableQuestions) = remember { mutableStateOf<List<ModelQuestion>>(emptyList()) }
+    val (selectedQuestions, setSelectedQuestions) = remember { mutableStateOf<List<ModelQuestion>>(emptyList()) }
+    val (showQuestionSelectionDialog, setShowQuestionSelectionDialog) = remember { mutableStateOf(false) }
+
+    // Загружаем вопросы из базы данных при первом рендере
+    LaunchedEffect(Unit) {
+        loadAvailableQuestions(context, setAvailableQuestions)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -112,7 +120,7 @@ fun FormCreationScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
-        
+
         when (currentStep) {
             1 -> AccountStep(
                 accountName = accountName,
@@ -143,7 +151,7 @@ fun FormCreationScreen(
                 onGameTypesChange = setSelectedGameTypes
             )
         }
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -156,11 +164,11 @@ fun FormCreationScreen(
             ) {
                 Text("Previous")
             }
-            
+
             if (currentStep < maxSteps) {
                 Button(
                     onClick = {
-                        if (validateCurrentStep(currentStep, 
+                        if (validateCurrentStep(currentStep,
                                 accountName, accountServer, accountTag,
                                 selectedRoles, selectedRolesLookingFor,
                                 minAge, maxAge)) {
@@ -173,16 +181,16 @@ fun FormCreationScreen(
             } else {
                 Button(
                     onClick = {
-                        // Save data to form manager
+                        // Сохраняем данные в form manager
                         formManager.updateAccount(Account(
                             name = accountName,
                             server = accountServer,
                             tag = accountTag
                         ))
-                        
+
                         formManager.updateRoles(selectedRoles)
                         formManager.updateRolesLookingFor(selectedRolesLookingFor)
-                        
+
                         val personData = PersonData(
                             minAge = minAge.toIntOrNull(),
                             maxAge = maxAge.toIntOrNull(),
@@ -192,8 +200,8 @@ fun FormCreationScreen(
                         formManager.updatePersonData(personData)
                         formManager.updateDescription(description)
                         formManager.updateGameTypes(selectedGameTypes)
-                        
-                        // Create the form
+
+                        // Создаем форму
                         createFormWithTestPrompt(formManager, userStore, setIsLoading, setFormId, setShowAddTestDialog, context)
                     },
                     enabled = !isLoading
@@ -210,40 +218,49 @@ fun FormCreationScreen(
             }
         }
     }
-    
+
+    // Диалог с выбором: добавить тест или нет
     if (showAddTestDialog) {
         AlertDialog(
-            onDismissRequest = { },
+            onDismissRequest = {
+                // Если пользователь закрывает диалог, переходим к активации
+                setShowAddTestDialog(false)
+                setShowActivationDialog(true)
+            },
             title = { Text("Add Test to Form") },
-            text = { Text("Would you like to add a test to your form? This will randomly select 3 questions from your database.") },
+            text = {
+                Column {
+                    Text("Would you like to add a test to your form?")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (availableQuestions.isEmpty()) {
+                        Text("No questions available in your database.", color = MaterialTheme.colorScheme.error)
+                    } else {
+                        Text("You have ${availableQuestions.size} questions in your database.")
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         setShowAddTestDialog(false)
-                        setShowTestAddingProgress(true)
-                        addTestToForm(
-                            formManager,
-                            formId,
-                            context,
-                            onTestAdded = {
-                                setShowTestAddingProgress(false)
-                                setShowActivationDialog(true) // Show activation dialog after test is added
-                            },
-                            onTestAddFailed = {
-                                setShowTestAddingProgress(false)
-                                setShowActivationDialog(true) // Still show activation dialog if test adding fails
-                            }
-                        )
-                    }
+                        if (availableQuestions.isNotEmpty()) {
+                            setShowQuestionSelectionDialog(true)
+                        } else {
+                            // Если нет вопросов, переходим к активации
+                            Toast.makeText(context, "No questions available", Toast.LENGTH_SHORT).show()
+                            setShowActivationDialog(true)
+                        }
+                    },
+                    enabled = availableQuestions.isNotEmpty()
                 ) {
-                    Text("Yes, Add Test")
+                    Text("Yes, Select Questions")
                 }
             },
             dismissButton = {
                 Button(
                     onClick = {
                         setShowAddTestDialog(false)
-                        setShowActivationDialog(true) // Show activation dialog directly if user doesn't want test
+                        setShowActivationDialog(true)
                     }
                 ) {
                     Text("No, Skip Test")
@@ -251,25 +268,100 @@ fun FormCreationScreen(
             }
         )
     }
-    
+
+    // Диалог выбора вопросов
+    if (showQuestionSelectionDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                setShowQuestionSelectionDialog(false)
+                setShowActivationDialog(true)
+            },
+            title = { Text("Select 3 Questions") },
+            text = {
+                QuestionSelectionContent(
+                    availableQuestions = availableQuestions,
+                    selectedQuestions = selectedQuestions,
+                    onQuestionSelected = { question ->
+                        val newSelection = if (selectedQuestions.contains(question)) {
+                            selectedQuestions.filter { it.id != question.id }
+                        } else {
+                            if (selectedQuestions.size < 3) {
+                                selectedQuestions + question
+                            } else {
+                                selectedQuestions
+                            }
+                        }
+                        setSelectedQuestions(newSelection)
+                    }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (selectedQuestions.size == 3) {
+                            setShowQuestionSelectionDialog(false)
+                            setShowTestAddingProgress(true)
+                            addSelectedQuestionsToForm(
+                                formManager,
+                                formId,
+                                selectedQuestions,
+                                context,
+                                onTestAdded = {
+                                    setShowTestAddingProgress(false)
+                                    setShowActivationDialog(true)
+                                    setSelectedQuestions(emptyList())
+                                },
+                                onTestAddFailed = {
+                                    setShowTestAddingProgress(false)
+                                    setShowActivationDialog(true)
+                                    setSelectedQuestions(emptyList())
+                                }
+                            )
+                        } else {
+                            Toast.makeText(context, "Please select exactly 3 questions", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    enabled = selectedQuestions.size == 3
+                ) {
+                    Text("Add Selected Questions")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        setShowQuestionSelectionDialog(false)
+                        setShowActivationDialog(true)
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Прогресс добавления теста
     if (showTestAddingProgress) {
         AlertDialog(
-            onDismissRequest = { }, // Prevent dismissal while loading
+            onDismissRequest = { }, // Предотвращаем закрытие во время загрузки
             title = { Text("Adding Test") },
-            text = { 
+            text = {
                 Column {
-                    Text("Adding test questions to your form...")
+                    Text("Adding selected questions to your form...")
                     Spacer(modifier = Modifier.height(8.dp))
                     CircularProgressIndicator()
                 }
             },
-            confirmButton = { } // Empty confirm button to satisfy AlertDialog requirement
+            confirmButton = { } // Пустая кнопка для удовлетворения требованиям AlertDialog
         )
     }
-    
+
+    // Диалог активации формы
     if (showActivationDialog) {
         AlertDialog(
-            onDismissRequest = { },
+            onDismissRequest = {
+                // Если пользователь закрывает диалог, просто завершаем
+                onFormCreated()
+            },
             title = { Text("Activate Form") },
             text = { Text("Your form has been created successfully! Would you like to activate it now?") },
             confirmButton = {
@@ -291,6 +383,126 @@ fun FormCreationScreen(
         )
     }
 }
+
+@Composable
+fun QuestionSelectionContent(
+    availableQuestions: List<ModelQuestion>,
+    selectedQuestions: List<ModelQuestion>,
+    onQuestionSelected: (ModelQuestion) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp)
+    ) {
+        Text(
+            text = "Selected: ${selectedQuestions.size}/3",
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        if (availableQuestions.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No questions available in database")
+            }
+        } else {
+            androidx.compose.foundation.lazy.LazyColumn {
+                items(availableQuestions) { question ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selectedQuestions.contains(question))
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surface
+                        ),
+                        onClick = { onQuestionSelected(question) }
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Text(
+                                text = question.question,
+                                fontWeight = FontWeight.Medium
+                            )
+
+                            if (question.answer != null) {
+
+                                Text(
+                                    text = "Answer type: ${question.answer.name}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun loadAvailableQuestions(
+    context: Context,
+    setAvailableQuestions: (List<ModelQuestion>) -> Unit
+) {
+    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        try {
+            val database = AppDatabase.getDatabase(context)
+            val questionDao = database.questionDao()
+            val questions = questionDao.getAllQuestionsList()
+            withContext(Dispatchers.Main) {
+                setAvailableQuestions(questions)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+
+fun addSelectedQuestionsToForm(
+    formManager: FormManager,
+    formId: String,
+    selectedQuestions: List<ModelQuestion>,
+    context: Context,
+    onTestAdded: () -> Unit,
+    onTestAddFailed: () -> Unit
+) {
+    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        try {
+            // Обновляем форму с выбранными вопросами
+            val result = formManager.updateFormWithTest(formId, selectedQuestions, 2) // порог 2
+
+            withContext(Dispatchers.Main) {
+                if (result != null) {
+                    Toast.makeText(context, "Test added to form successfully!", Toast.LENGTH_SHORT).show()
+                    onTestAdded()
+                } else {
+                    Toast.makeText(context, "Failed to add test to form", Toast.LENGTH_SHORT).show()
+                    onTestAddFailed()
+                }
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Error adding test to form: ${e.message}", Toast.LENGTH_SHORT).show()
+                onTestAddFailed()
+            }
+        }
+    }
+}
+
+// Остальные функции (AccountStep, RolesStep, DetailsStep, RoleSelection, GameTypeSelection, GenderSelection, validateCurrentStep, createFormWithTestPrompt, activateForm)
+// остаются без изменений
+
+// ... остальной код без изменений ...
+
+
+
 
 @Composable
 fun AccountStep(

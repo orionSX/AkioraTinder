@@ -136,7 +136,7 @@ fun QuestionsContent() {
         }
     }
 
-    // Диалог для добавления/редактирования вопроса
+
     if (showDialog) {
         QuestionDialog(
             question = selectedQuestion,

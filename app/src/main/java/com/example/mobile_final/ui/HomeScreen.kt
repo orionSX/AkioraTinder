@@ -50,18 +50,7 @@ fun HomeScreen() {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Кнопка для перехода к управлению вопросами
-            Button(
-                onClick = {
-                    val intent = Intent(context, QuestionsActivity::class.java)
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.width(200.dp)
-            ) {
-                Text("Управление вопросами")
-            }
 
-            // Или как вариант - сделать Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth(0.8f)

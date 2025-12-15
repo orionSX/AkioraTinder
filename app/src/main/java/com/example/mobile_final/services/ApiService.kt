@@ -412,8 +412,20 @@ class ApiService private constructor(context: Context) {
         val actualUserId =  userStore.getUserId() ?: return@withContext false
         val json = JSONObject().apply {
             if (update.formTest != null) {
-                put("form_test", update.formTest)
+                put("threshold", update.formTest.threshold)
                 put("user_id", actualUserId)
+
+                // Создаем JSONArray для вопросов
+                val questionsArray = JSONArray()
+                update.formTest.questions.forEach { question ->
+                    val questionObj = JSONObject().apply {
+                        put("question", question.question) // Используем поле text вопроса
+                        put("answer", question.answer?.name?.lowercase() ?: "yes") // Преобразуем AnswerType в строку
+                    }
+                    questionsArray.put(questionObj)
+                }
+                put("questions", questionsArray)
+
             }
 
 

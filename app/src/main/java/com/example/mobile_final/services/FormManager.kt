@@ -83,7 +83,7 @@ class FormManager(private val context: Context) {
     }
     
     // Method to update a form with test questions
-    suspend fun updateFormWithTest(formId: String, questions: List<com.example.mobile_final.model.Question>, threshold: Int = 2): PlayerProfile? {
+    suspend fun updateFormWithTest(formId: String, questions: List<com.example.mobile_final.model.Question>, threshold: Int = 2): Boolean {
         val formTest = FormTest(
             questions = questions.map { 
                 Question(question = it.question, answer = when(it.answer) {
@@ -98,6 +98,6 @@ class FormManager(private val context: Context) {
             formTest = formTest
         )
         
-        return apiService.updateForm(formId, updateRequest)
+        return apiService.updateFormTest(formId, updateRequest)
     }
 }
